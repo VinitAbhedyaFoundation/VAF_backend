@@ -5,5 +5,5 @@ export class MarkAttendanceDto {
   @ApiProperty({ example: "TEMP12345" })
   @IsString()
   @IsNotEmpty()
-  temporaryToken: string;
+  temporaryToken!: string;
 }

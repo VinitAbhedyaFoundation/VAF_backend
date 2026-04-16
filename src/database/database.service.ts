@@ -5,14 +5,13 @@ import { PrismaClient } from "@prisma/client";
 @Injectable()
 export class DatabaseService
   extends PrismaClient
-  implements OnModuleInit, OnModuleDestroy {
-
+  implements OnModuleInit, OnModuleDestroy
+{
   constructor(private configService: ConfigService) {
-    const dbUrl = configService.get<string>('DATABASE_URL');
+    const dbUrl = configService.get<string>("DATABASE_URL");
 
     if (!dbUrl) {
-      console.error('DATABASE_URL is not defined');
-      process.exit(1);
+      throw new Error("DATABASE_URL is not defined");
     }
 
     super({
@@ -25,22 +24,30 @@ export class DatabaseService
   }
 
   async onModuleInit() {
-    try {
-      await this.$connect();
-      console.log('✅ Database connected');
-    } catch (error) {
-      console.error('❌ Database connection failed');
+    let retries = 5;
 
-      if (process.env.NODE_ENV === 'development') {
-        console.error(error);
+    while (retries) {
+      try {
+        await this.$connect();
+        console.log("✅ Database connected");
+        return;
+      } catch (error) {
+        retries--;
+        console.log(`❌ DB connection failed... retries left: ${retries}`);
+
+        if (retries === 0) {
+          console.error("💥 Could not connect to DB");
+          throw error;
+        }
+
+        // wait 3 seconds before retry
+        await new Promise((res) => setTimeout(res, 3000));
       }
-
-      throw error;
     }
   }
 
   async onModuleDestroy() {
     await this.$disconnect();
-    console.log('🛑 Database disconnected');
+    console.log("🛑 Database disconnected");
   }
 }

@@ -7,6 +7,57 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id                   Int        @id @default(autoincrement())
+  name                 String
+  email                String     @unique
+  password             String
+  phone                String
+  parentNumber         String
+  bloodGroup           BloodGroup
+  birthDate            DateTime
+  gender               Gender
+  occupation           Occupation
+  highestQualification String
+  address              String
+  city                 String?
+  state                String?
+  collegeOrCompany     String?
+  role                 Role
+  drivesCount          Int        @default(0)
+  ploggerId            String     @unique
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
+  drives               Drive[]    @relation("DriveUsers")
+
+  @@index([email])
+}
+
+model Drive {
+  id             Int           @id @default(autoincrement())
+  date           DateTime
+  totalHours     Int
+  volunteerCount Int           @default(0)
+  temporaryToken String        @unique
+  expiryDate     DateTime
+  locationId     Int
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  driveLocation  DriveLocation @relation(fields: [locationId], references: [id])
+  users          User[]        @relation("DriveUsers")
+
+  @@index([locationId])
+  @@index([temporaryToken])
+}
+
+model DriveLocation {
+  id        Int      @id @default(autoincrement())
+  location  String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  drives    Drive[]
+}
+
 enum Gender {
   Male
   Female
@@ -34,69 +85,4 @@ enum Role {
   User
   Admin
   SuperAdmin
-}
-
-model User {
-  id                   Int        @id @default(autoincrement())
-  name                 String
-  email                String     @unique
-  password             String
-
-  phone                String
-  parentNumber         String
-
-  bloodGroup           BloodGroup
-  birthDate            DateTime
-  gender               Gender
-  occupation           Occupation
-  highestQualification String
-
-  address              String
-  city                 String?
-  state                String?
-  collegeOrCompany     String?
-
-  role                 Role       // ❌ removed default here
-
-  drivesCount          Int        @default(0)
-  ploggerId            String     @unique
-
-  createdAt            DateTime   @default(now())
-  updatedAt            DateTime   @updatedAt
-
-  drives               Drive[]    @relation("DriveUsers")
-
-  @@index([email])
-}
-
-model Drive {
-  id             Int           @id @default(autoincrement())
-  date           DateTime
-  totalHours     Int
-
-  volunteerCount Int           @default(0)
-
-  temporaryToken String        @unique
-  expiryDate     DateTime
-
-  locationId     Int
-  driveLocation  DriveLocation @relation(fields: [locationId], references: [id], onDelete: Restrict)
-
-  users          User[]        @relation("DriveUsers")
-
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-
-  @@index([locationId])
-  @@index([temporaryToken])
-}
-
-model DriveLocation {
-  id        Int      @id @default(autoincrement())
-  location  String   @unique
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  drives    Drive[]
 }
