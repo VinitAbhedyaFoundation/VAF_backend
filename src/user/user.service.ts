@@ -1,30 +1,54 @@
-import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 import { DatabaseService } from 'src/database/database.service';
 
 @Injectable()
 export class UserService {
-  constructor(private databaseService: DatabaseService,) { }
+  constructor(private databaseService: DatabaseService) {}
 
   async userDetail(userId: number) {
     try {
       const user = await this.databaseService.user.findUnique({
         where: { id: userId },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+          parentNumber: true,
+          bloodGroup: true,
+          gender: true,
+          occupation: true,
+          highestQualification: true,
+          address: true,
+          city: true,
+          state: true,
+          collegeOrCompany: true,
+          role: true,
+          ploggerId: true,
+        },
       });
-      delete user.password;
+
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
       return {
         message: 'User Details',
         user,
-      }
-
+      };
     } catch (error) {
-      console.error("error in user detail", error);
-      throw error;
+      console.error('error in user detail', error);
+      throw new InternalServerErrorException('Something went wrong');
     }
   }
 
   async markAttendance(temporaryToken: string, userId: number) {
     try {
-
       const drive = await this.databaseService.drive.findFirst({
         where: { temporaryToken },
         orderBy: { date: 'desc' },
@@ -40,9 +64,12 @@ export class UserService {
         throw new BadRequestException('Token has expired.');
       }
 
-      const isAttendaceAlreadyMarked = drive.users.some(user => user.id === userId);
-      if (isAttendaceAlreadyMarked) {
-        throw new BadRequestException('Attendance is already Marked');
+      const isAttendanceAlreadyMarked = drive.users.some(
+        (user) => user.id === userId,
+      );
+
+      if (isAttendanceAlreadyMarked) {
+        throw new BadRequestException('Attendance is already marked');
       }
 
       await this.databaseService.drive.update({
@@ -60,8 +87,8 @@ export class UserService {
       await this.databaseService.user.update({
         where: { id: userId },
         data: {
-          drivescount: {
-            increment: 1,
+          drivesCount: {
+            increment: 1, // ✅ FIXED
           },
         },
       });
@@ -71,38 +98,48 @@ export class UserService {
       if (error instanceof BadRequestException || error instanceof NotFoundException) {
         throw error;
       }
-      console.error("error in mark attendance", error);
+      console.error('error in mark attendance', error);
       throw new InternalServerErrorException('Something went wrong');
     }
   }
 
   async drivesAttended(userId: number) {
     try {
-      const attended = await this.databaseService.user.findUnique({
+      const user = await this.databaseService.user.findUnique({
         where: { id: userId },
-        include: { drives: true },
+        include: {
+          drives: {
+            include: {
+              driveLocation: true, // ✅ FIXED (no extra queries)
+            },
+          },
+        },
       });
 
-      if(attended.drives.length === 0) {
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      if (user.drives.length === 0) {
         return {
           message: 'No drives attended',
           drives: [],
         };
       }
 
-      const drivesWithLocations = await Promise.all(attended.drives.map(async (drive) => {
-        const location = await this.databaseService.driveLocation.findUnique({
-          where: { id: drive.locationId },
-        });
-        return { ...drive, location: location?.location };
+      const drives = user.drives.map((drive) => ({
+        id: drive.id,
+        date: drive.date,
+        totalHours: drive.totalHours,
+        location: drive.driveLocation?.location,
       }));
 
       return {
         message: 'Drives Attended',
-        drives: drivesWithLocations,
+        drives,
       };
     } catch (error) {
-      console.error("Error in drives attended:", error);
+      console.error('Error in drives attended:', error);
       throw new InternalServerErrorException('Something went wrong');
     }
   }

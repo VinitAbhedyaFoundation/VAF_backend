@@ -4,11 +4,10 @@ import {
   InternalServerErrorException,
   NotFoundException,
   UnauthorizedException,
-  ForbiddenException
 } from '@nestjs/common';
-import { CreateUserDto } from './dto/create-user.dto';
+import { CreateUserDto } from '../user/dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { LoginUserDto } from './dto/login-user-dto';
+import { LoginUserDto } from './dto/login-user.dto';
 import * as bcrypt from 'bcrypt';
 import { DatabaseService } from 'src/database/database.service';
 import { ConfigService } from '@nestjs/config';
@@ -45,6 +44,7 @@ export class AuthService {
           email,
           password: hashedPassword,
           ...rest,
+          role: Role.User,
           ploggerId: userId,
         },
       });
@@ -52,29 +52,23 @@ export class AuthService {
       return { message: 'User Created Successfully', userId };
 
     } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
         throw new ConflictException('User already exists');
       }
       throw new InternalServerErrorException();
     }
   }
 
-  // 🔐 FIXED: no user enumeration
   async loginUser(loginUserData: LoginUserDto) {
-    const { userId, password } = loginUserData;
+    const { ploggerId, password } = loginUserData;
 
     try {
-      let user;
-
-      if (userId.includes('@')) {
-        user = await this.databaseService.user.findUnique({
-          where: { email: userId }
-        });
-      } else {
-        user = await this.databaseService.user.findUnique({
-          where: { ploggerId: userId }
-        });
-      }
+      const user = await this.databaseService.user.findUnique({
+        where: { ploggerId },
+      });
 
       if (!user) {
         throw new UnauthorizedException('Invalid credentials');
@@ -88,7 +82,7 @@ export class AuthService {
 
       const token = await this.generateUserToken({
         email: user.email,
-        id: user.id
+        id: user.id,
       });
 
       return { message: 'Login Successful', token };
@@ -99,15 +93,13 @@ export class AuthService {
     }
   }
 
-  // 🔐 FIXED: authorization check
-  async update(updateAuthData: UpdateUserDto, id: number, currentUser: any) {
+  async update(updateAuthData: UpdateUserDto, id: number) {
     try {
-      if (currentUser.id !== id && currentUser.role !== 'Admin') {
-        throw new ForbiddenException('Not allowed');
-      }
-
       if (updateAuthData.password) {
-        updateAuthData.password = await bcrypt.hash(updateAuthData.password, 10);
+        updateAuthData.password = await bcrypt.hash(
+          updateAuthData.password,
+          10,
+        );
       }
 
       const user = await this.databaseService.user.update({
@@ -118,13 +110,16 @@ export class AuthService {
           email: true,
           name: true,
           role: true,
-        }
+        },
       });
 
       return { message: 'User Updated Successfully', user };
 
     } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
         throw new NotFoundException('User not found');
       }
       throw new InternalServerErrorException();
@@ -138,8 +133,8 @@ export class AuthService {
       const admin = await this.databaseService.user.findFirst({
         where: {
           email,
-          role: { in: ['Admin', 'SuperAdmin'] }
-        }
+          role: { in: [Role.Admin, Role.SuperAdmin] },
+        },
       });
 
       if (!admin) {
@@ -155,7 +150,7 @@ export class AuthService {
       const token = await this.generateAdminToken({
         email: admin.email,
         id: admin.id,
-        role: admin.role
+        role: admin.role,
       });
 
       return { message: 'Login Successful', token };
@@ -166,12 +161,7 @@ export class AuthService {
     }
   }
 
-  // 🔐 FIXED: restrict admin creation
-  async createAdmin(createAdminData: CreateAdminDto, currentUser: any) {
-    if (currentUser.role !== 'SuperAdmin') {
-      throw new ForbiddenException('Only SuperAdmin can create Admin');
-    }
-
+  async createAdmin(createAdminData: CreateAdminDto) {
     const { email, password, name } = createAdminData;
 
     try {
@@ -190,7 +180,7 @@ export class AuthService {
           name,
           email,
           password: hashedPassword,
-          role: 'Admin',
+          role: Role.Admin,
           phone: '0000000000',
           parentNumber: '0000000000',
           bloodGroup: 'O_POSITIVE',
@@ -206,14 +196,16 @@ export class AuthService {
       return { message: 'Admin Created Successfully' };
 
     } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
         throw new ConflictException('Email already exists');
       }
       throw new InternalServerErrorException();
     }
   }
 
-  // 🔐 FIXED: no password leak
   async getAllUsers() {
     try {
       const users = await this.databaseService.user.findMany({
@@ -223,7 +215,7 @@ export class AuthService {
           name: true,
           email: true,
           role: true,
-        }
+        },
       });
 
       if (!users.length) {
@@ -248,29 +240,35 @@ export class AuthService {
     const newId = lastId + 1;
 
     const year = new Date().getFullYear().toString().slice(-2);
-    const genderCode = gender === "Male" ? 1 : gender === "Female" ? 2 : 3;
+    const genderCode = gender === 'Male' ? 1 : gender === 'Female' ? 2 : 3;
     const autoGeneratedId = newId.toString().padStart(5, '0');
 
     return `${year}${genderCode}${autoGeneratedId}`;
   }
 
+  // ✅ FIXED HERE
   async generateUserToken(payload: { email: string; id: number }) {
     return this.jwtService.signAsync(
       { email: payload.email, sub: payload.id },
       {
-        secret: this.configService.get('USER_JWT_SECRET'),
+        secret: this.configService.get<string>('JWT_SECRET_KEY'),
         expiresIn: '2h',
-      }
+      },
     );
   }
 
-  async generateAdminToken(payload: { email: string; id: number; role: Role }) {
+  // ✅ FIXED HERE
+  async generateAdminToken(payload: {
+    email: string;
+    id: number;
+    role: Role;
+  }) {
     return this.jwtService.signAsync(
       { email: payload.email, sub: payload.id, role: payload.role },
       {
-        secret: this.configService.get('ADMIN_JWT_SECRET'),
+        secret: this.configService.get<string>('JWT_SECRET_KEY'),
         expiresIn: '6h',
-      }
+      },
     );
   }
 }
