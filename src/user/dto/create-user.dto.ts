@@ -13,22 +13,22 @@ export class CreateUserDto {
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
-  name: string;
+  name!: string;
 
   @ApiProperty()
   @IsEmail()
   @IsNotEmpty()
-  email: string;
+  email!: string;
 
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
-  password: string;
+  password!: string;
 
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
-  phone: string;
+  phone!: string;
 
   @ApiProperty({
     enum: BloodGroup,
@@ -36,12 +36,12 @@ export class CreateUserDto {
   })
   @IsEnum(BloodGroup)
   @IsNotEmpty()
-  bloodGroup: BloodGroup;
+  bloodGroup!: BloodGroup;
 
   @ApiProperty()
   @IsDateString()
   @IsNotEmpty()
-  birthDate: string;
+  birthDate!: string;
 
   @ApiProperty({
     enum: Gender,
@@ -49,12 +49,12 @@ export class CreateUserDto {
   })
   @IsEnum(Gender)
   @IsNotEmpty()
-  gender: Gender;
+  gender!: Gender;
 
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
-  highestQualification: string;
+  highestQualification!: string;
 
   @ApiProperty({
     enum: Occupation,
@@ -62,12 +62,12 @@ export class CreateUserDto {
   })
   @IsEnum(Occupation)
   @IsNotEmpty()
-  occupation: Occupation;
+  occupation!: Occupation;
 
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
-  address: string;
+  address!: string;
 
   @ApiProperty()
   @IsString()
@@ -82,7 +82,7 @@ export class CreateUserDto {
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
-  parentNumber: string;
+  parentNumber!: string;
 
   @ApiProperty()
   @IsString()

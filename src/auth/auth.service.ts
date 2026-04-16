@@ -21,78 +21,112 @@ export class AuthService {
   constructor(
     private databaseService: DatabaseService,
     private configService: ConfigService,
-    private jwtService: JwtService
+    private jwtService: JwtService,
   ) {}
 
+  // 🔥 CREATE USER
   async createUser(createUserData: CreateUserDto) {
-    const { email, password, ...rest } = createUserData;
+  const { email, password, gender, birthDate, ...rest } = createUserData;
 
-    try {
-      const existingUser = await this.databaseService.user.findUnique({
-        where: { email },
-      });
-
-      if (existingUser) {
-        throw new ConflictException('User already exists');
-      }
-
-      const hashedPassword = await bcrypt.hash(password, 10);
-      const userId = await this.createUserId(createUserData.gender);
-
-      await this.databaseService.user.create({
-        data: {
-          email,
-          password: hashedPassword,
-          ...rest,
-          role: Role.User,
-          ploggerId: userId,
-        },
-      });
-
-      return { message: 'User Created Successfully', userId };
-
-    } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2002'
-      ) {
-        throw new ConflictException('User already exists');
-      }
-      throw new InternalServerErrorException();
+  try {
+    if (!gender) {
+      throw new InternalServerErrorException('Gender is required');
     }
-  }
 
+    const existingUser = await this.databaseService.user.findUnique({
+      where: { email },
+    });
+
+    if (existingUser) {
+      throw new ConflictException('User already exists');
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const userId = await this.createUserId(gender);
+
+    // ✅ Build data object explicitly (NO spread tricks)
+    const data: Prisma.UserCreateInput = {
+      email,
+      password: hashedPassword,
+      gender,
+      ...rest,
+      role: Role.User,
+      ploggerId: userId,
+      birthDate: new Date(birthDate), // ✅ ALWAYS defined
+    };
+
+    const user = await this.databaseService.user.create({ data });
+
+    return { message: 'User Created Successfully', userId, user };
+
+  } catch (error: unknown) {
+    console.error('CREATE USER ERROR:', error);
+
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2002'
+    ) {
+      throw new ConflictException('User already exists');
+    }
+
+    if (error instanceof Error) {
+      throw new InternalServerErrorException(error.message);
+    }
+
+    throw new InternalServerErrorException('Something went wrong');
+  }
+}
+
+  // 🔥 LOGIN USER
   async loginUser(loginUserData: LoginUserDto) {
-    const { ploggerId, password } = loginUserData;
+  const { email, password } = loginUserData;
 
-    try {
-      const user = await this.databaseService.user.findUnique({
-        where: { ploggerId },
-      });
+  try {
+    console.log("🔵 LOGIN ATTEMPT:", email);
 
-      if (!user) {
-        throw new UnauthorizedException('Invalid credentials');
-      }
+    const user = await this.databaseService.user.findUnique({
+      where: { email },
+    });
 
-      const isPasswordValid = await bcrypt.compare(password, user.password);
+    console.log("🟡 USER FOUND:", user);
 
-      if (!isPasswordValid) {
-        throw new UnauthorizedException('Invalid credentials');
-      }
-
-      const token = await this.generateUserToken({
-        email: user.email,
-        id: user.id,
-      });
-
-      return { message: 'Login Successful', token };
-
-    } catch (error) {
-      if (error instanceof UnauthorizedException) throw error;
-      throw new InternalServerErrorException();
+    if (!user) {
+      console.log("❌ USER NOT FOUND");
+      throw new UnauthorizedException('User does not exist');
     }
-  }
 
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+
+    console.log("🟢 PASSWORD MATCH:", isPasswordValid);
+
+    if (!isPasswordValid) {
+      console.log("❌ WRONG PASSWORD");
+      throw new UnauthorizedException('Wrong password');
+    }
+
+    console.log("✅ LOGIN SUCCESS");
+
+    const token = await this.generateUserToken({
+      email: user.email,
+      id: user.id,
+    });
+
+    return { message: 'Login Successful', token, role: user.role };
+
+  } catch (error: unknown) {
+    console.error('LOGIN ERROR:', error);
+
+    if (error instanceof UnauthorizedException) throw error;
+
+    if (error instanceof Error) {
+      throw new InternalServerErrorException(error.message);
+    }
+
+    throw new InternalServerErrorException();
+  }
+}
+
+  // 🔥 UPDATE USER
   async update(updateAuthData: UpdateUserDto, id: number) {
     try {
       if (updateAuthData.password) {
@@ -115,17 +149,25 @@ export class AuthService {
 
       return { message: 'User Updated Successfully', user };
 
-    } catch (error) {
+    } catch (error: unknown) {
+      console.error('UPDATE ERROR:', error);
+
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2025'
       ) {
         throw new NotFoundException('User not found');
       }
+
+      if (error instanceof Error) {
+        throw new InternalServerErrorException(error.message);
+      }
+
       throw new InternalServerErrorException();
     }
   }
 
+  // 🔥 ADMIN LOGIN
   async loginAdmin(loginAdminData: LoginAdminDto) {
     const { email, password } = loginAdminData;
 
@@ -155,12 +197,20 @@ export class AuthService {
 
       return { message: 'Login Successful', token };
 
-    } catch (error) {
+    } catch (error: unknown) {
+      console.error('ADMIN LOGIN ERROR:', error);
+
       if (error instanceof UnauthorizedException) throw error;
+
+      if (error instanceof Error) {
+        throw new InternalServerErrorException(error.message);
+      }
+
       throw new InternalServerErrorException();
     }
   }
 
+  // 🔥 CREATE ADMIN
   async createAdmin(createAdminData: CreateAdminDto) {
     const { email, password, name } = createAdminData;
 
@@ -195,17 +245,25 @@ export class AuthService {
 
       return { message: 'Admin Created Successfully' };
 
-    } catch (error) {
+    } catch (error: unknown) {
+      console.error('CREATE ADMIN ERROR:', error);
+
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2002'
       ) {
         throw new ConflictException('Email already exists');
       }
+
+      if (error instanceof Error) {
+        throw new InternalServerErrorException(error.message);
+      }
+
       throw new InternalServerErrorException();
     }
   }
 
+  // 🔥 GET USERS
   async getAllUsers() {
     try {
       const users = await this.databaseService.user.findMany({
@@ -224,8 +282,15 @@ export class AuthService {
 
       return { message: 'Users Found', users };
 
-    } catch (error) {
+    } catch (error: unknown) {
+      console.error('GET USERS ERROR:', error);
+
       if (error instanceof NotFoundException) throw error;
+
+      if (error instanceof Error) {
+        throw new InternalServerErrorException(error.message);
+      }
+
       throw new InternalServerErrorException();
     }
   }
@@ -246,7 +311,6 @@ export class AuthService {
     return `${year}${genderCode}${autoGeneratedId}`;
   }
 
-  // ✅ FIXED HERE
   async generateUserToken(payload: { email: string; id: number }) {
     return this.jwtService.signAsync(
       { email: payload.email, sub: payload.id },
@@ -257,7 +321,6 @@ export class AuthService {
     );
   }
 
-  // ✅ FIXED HERE
   async generateAdminToken(payload: {
     email: string;
     id: number;

@@ -5,11 +5,11 @@ export class LoginAdminDto {
   @ApiProperty({ example: "admin@gmail.com" })
   @IsEmail()
   @IsNotEmpty()
-  email: string;
+  email!: string;
 
   @ApiProperty({ example: "strongPassword123" })
   @IsString()
   @IsNotEmpty()
   @MinLength(6)
-  password: string;
+  password!: string;
 }
