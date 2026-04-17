@@ -22,109 +22,109 @@ export class AuthService {
     private databaseService: DatabaseService,
     private configService: ConfigService,
     private jwtService: JwtService,
-  ) {}
+  ) { }
 
   // 🔥 CREATE USER
   async createUser(createUserData: CreateUserDto) {
-  const { email, password, gender, birthDate, ...rest } = createUserData;
+    const { email, password, gender, birthDate, ...rest } = createUserData;
 
-  try {
-    if (!gender) {
-      throw new InternalServerErrorException('Gender is required');
+    try {
+      if (!gender) {
+        throw new InternalServerErrorException('Gender is required');
+      }
+
+      const existingUser = await this.databaseService.user.findUnique({
+        where: { email },
+      });
+
+      if (existingUser) {
+        throw new ConflictException('User already exists');
+      }
+
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const userId = await this.createUserId(gender);
+
+      // ✅ Build data object explicitly (NO spread tricks)
+      const data: Prisma.UserCreateInput = {
+        email,
+        password: hashedPassword,
+        gender,
+        ...rest,
+        role: Role.User,
+        ploggerId: userId,
+        birthDate: new Date(birthDate), // ✅ ALWAYS defined
+      };
+
+      const user = await this.databaseService.user.create({ data });
+
+      return { message: 'User Created Successfully', userId, user };
+
+    } catch (error: unknown) {
+      console.error('CREATE USER ERROR:', error);
+
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException('User already exists');
+      }
+
+      if (error instanceof Error) {
+        throw new InternalServerErrorException(error.message);
+      }
+
+      throw new InternalServerErrorException('Something went wrong');
     }
-
-    const existingUser = await this.databaseService.user.findUnique({
-      where: { email },
-    });
-
-    if (existingUser) {
-      throw new ConflictException('User already exists');
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const userId = await this.createUserId(gender);
-
-    // ✅ Build data object explicitly (NO spread tricks)
-    const data: Prisma.UserCreateInput = {
-      email,
-      password: hashedPassword,
-      gender,
-      ...rest,
-      role: Role.User,
-      ploggerId: userId,
-      birthDate: new Date(birthDate), // ✅ ALWAYS defined
-    };
-
-    const user = await this.databaseService.user.create({ data });
-
-    return { message: 'User Created Successfully', userId, user };
-
-  } catch (error: unknown) {
-    console.error('CREATE USER ERROR:', error);
-
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === 'P2002'
-    ) {
-      throw new ConflictException('User already exists');
-    }
-
-    if (error instanceof Error) {
-      throw new InternalServerErrorException(error.message);
-    }
-
-    throw new InternalServerErrorException('Something went wrong');
   }
-}
 
   // 🔥 LOGIN USER
   async loginUser(loginUserData: LoginUserDto) {
-  const { email, password } = loginUserData;
+    const { email, password } = loginUserData;
 
-  try {
-    console.log("🔵 LOGIN ATTEMPT:", email);
+    try {
+      console.log("🔵 LOGIN ATTEMPT:", email);
 
-    const user = await this.databaseService.user.findUnique({
-      where: { email },
-    });
+      const user = await this.databaseService.user.findUnique({
+        where: { email },
+      });
 
-    console.log("🟡 USER FOUND:", user);
+      console.log("🟡 USER FOUND:", user);
 
-    if (!user) {
-      console.log("❌ USER NOT FOUND");
-      throw new UnauthorizedException('User does not exist');
+      if (!user) {
+        console.log("❌ USER NOT FOUND");
+        throw new UnauthorizedException('User does not exist');
+      }
+
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+
+      console.log("🟢 PASSWORD MATCH:", isPasswordValid);
+
+      if (!isPasswordValid) {
+        console.log("❌ WRONG PASSWORD");
+        throw new UnauthorizedException('Wrong password');
+      }
+
+      console.log("✅ LOGIN SUCCESS");
+
+      const token = await this.generateUserToken({
+        email: user.email,
+        id: user.id,
+      });
+
+      return { message: 'Login Successful', token, role: user.role };
+
+    } catch (error: unknown) {
+      console.error('LOGIN ERROR:', error);
+
+      if (error instanceof UnauthorizedException) throw error;
+
+      if (error instanceof Error) {
+        throw new InternalServerErrorException(error.message);
+      }
+
+      throw new InternalServerErrorException();
     }
-
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-
-    console.log("🟢 PASSWORD MATCH:", isPasswordValid);
-
-    if (!isPasswordValid) {
-      console.log("❌ WRONG PASSWORD");
-      throw new UnauthorizedException('Wrong password');
-    }
-
-    console.log("✅ LOGIN SUCCESS");
-
-    const token = await this.generateUserToken({
-      email: user.email,
-      id: user.id,
-    });
-
-    return { message: 'Login Successful', token, role: user.role };
-
-  } catch (error: unknown) {
-    console.error('LOGIN ERROR:', error);
-
-    if (error instanceof UnauthorizedException) throw error;
-
-    if (error instanceof Error) {
-      throw new InternalServerErrorException(error.message);
-    }
-
-    throw new InternalServerErrorException();
   }
-}
 
   // 🔥 UPDATE USER
   async update(updateAuthData: UpdateUserDto, id: number) {
@@ -320,7 +320,6 @@ export class AuthService {
       },
     );
   }
-
   async generateAdminToken(payload: {
     email: string;
     id: number;
@@ -333,5 +332,41 @@ export class AuthService {
         expiresIn: '6h',
       },
     );
+  }
+
+  // ✅ ADD ONLY THIS BELOW (INSIDE CLASS)
+  async getMe(userId: number) {
+    try {
+      const user = await this.databaseService.user.findUnique({
+        where: { id: userId },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+          role: true,
+          drivesCount: true,
+          address: true,
+          createdAt: true,
+        },
+      });
+
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      return user;
+
+    } catch (error: unknown) {
+      console.error('GET ME ERROR:', error);
+
+      if (error instanceof NotFoundException) throw error;
+
+      if (error instanceof Error) {
+        throw new InternalServerErrorException(error.message);
+      }
+
+      throw new InternalServerErrorException();
+    }
   }
 }

@@ -5,7 +5,7 @@ import { DatabaseModule } from 'src/database/database.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { AdminJwtStrategy } from './strategy/admin-jwt.strategy';
-import { UserJwtStrategy } from './strategy/user-jwt.strategy';
+import { UserJwtStrategy } from './strategy/jwt-user.strategy';
 import { SuperAdminJwtStrategy } from './strategy/superadmin-jwt.strategy';
 
 @Module({
