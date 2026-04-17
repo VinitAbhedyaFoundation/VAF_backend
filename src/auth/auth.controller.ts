@@ -28,10 +28,22 @@ export class AuthController {
   @Post('login')
   @ApiOperation({
     description: 'Login API of user',
-    summary: 'Input - PloggerId, Output - jwtToken',
+    summary: 'Input - email and password, Output - jwtToken + role',
   })
   async loginUser(@Body() loginUserDto: LoginUserDto) {
     return this.authService.loginUser(loginUserDto);
+  }
+
+  // 🔥 NEW: GET CURRENT USER
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt-user'))
+  @Get('me')
+  @ApiOperation({
+    description: 'Get current logged in user',
+    summary: 'Returns logged-in user profile',
+  })
+  async getMe(@UserId() userId: number) {
+    return this.authService.getMe(userId);
   }
 
   // auth/update-user

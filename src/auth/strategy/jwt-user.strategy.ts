@@ -6,7 +6,7 @@ import { DatabaseService } from "src/database/database.service";
 import { Role } from "@prisma/client";
 
 @Injectable()
-export class UserJwtStrategy extends PassportStrategy(Strategy, 'user-jwt') {
+export class UserJwtStrategy extends PassportStrategy(Strategy, 'jwt-user') {
   constructor(
     private configService: ConfigService,
     private databaseService: DatabaseService
@@ -36,7 +36,7 @@ export class UserJwtStrategy extends PassportStrategy(Strategy, 'user-jwt') {
 
     // ✅ safe return (no password)
     return {
-      id: user.id,
+      userId: user.id,
       email: user.email,
       name: user.name,
       role: user.role,
