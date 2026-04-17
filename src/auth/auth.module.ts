@@ -17,7 +17,7 @@ import { SuperAdminJwtStrategy } from './strategy/superadmin-jwt.strategy';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET') || 'supersecret',
+secret: configService.get<string>('JWT_SECRET_KEY') || 'supersecret',
         signOptions: {
           expiresIn: '7d',
         },

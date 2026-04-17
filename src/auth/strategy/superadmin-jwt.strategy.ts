@@ -6,7 +6,7 @@ import { DatabaseService } from "src/database/database.service";
 import { Role } from "@prisma/client";
 
 @Injectable()
-export class SuperAdminJwtStrategy extends PassportStrategy(Strategy, 'jwt-superadmin') {
+export class SuperAdminJwtStrategy extends PassportStrategy(Strategy, 'superadmin-jwt') {
   constructor(
     private configService: ConfigService,
     private databaseService: DatabaseService
@@ -14,7 +14,9 @@ export class SuperAdminJwtStrategy extends PassportStrategy(Strategy, 'jwt-super
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-secretOrKey: configService.get<string>('JWT_SECRET_KEY'),    });
+      secretOrKey:
+        configService.get<string>('JWT_SECRET_KEY') || 'supersecret',
+    });
   }
 
   async validate(payload: any) {

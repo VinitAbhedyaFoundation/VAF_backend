@@ -6,7 +6,7 @@ import { DatabaseService } from "src/database/database.service";
 import { Role } from "@prisma/client";
 
 @Injectable()
-export class AdminJwtStrategy extends PassportStrategy(Strategy, 'jwt-admin') {
+export class AdminJwtStrategy extends PassportStrategy(Strategy, 'admin-jwt') {
   constructor(
     private configService: ConfigService,
     private databaseService: DatabaseService
@@ -14,7 +14,8 @@ export class AdminJwtStrategy extends PassportStrategy(Strategy, 'jwt-admin') {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-secretOrKey: configService.get<string>('JWT_SECRET_KEY'),    });
+     secretOrKey: configService.get<string>('JWT_SECRET_KEY') || 'supersecret',
+    });
   }
 
   async validate(payload: any) {
@@ -32,7 +33,7 @@ secretOrKey: configService.get<string>('JWT_SECRET_KEY'),    });
       throw new UnauthorizedException('Access denied');
     }
 
-    // ✅ remove password before returning
+    // ✅ remove password
     const { password, ...result } = user;
 
     return result;
