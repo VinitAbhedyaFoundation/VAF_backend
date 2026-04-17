@@ -1,9 +1,12 @@
 import { Controller, Get, Post, Body, Param, UseGuards } from '@nestjs/common';
 import { UserService } from './user.service';
 import { UserId } from '../common/decorator/user-id.decorator';
-import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { MarkAttendanceDto } from './dto/mark-attendance.dto';
+
+// ✅ IMPORT YOUR GUARDS
+import { UserAuthGuard } from '../auth/guards/user-auth.guard';
+import { AdminAuthGuard } from '../auth/guards/admin-auth.guard';
 
 @ApiTags('User')
 @Controller('user')
@@ -12,7 +15,7 @@ export class UserController {
 
   // 🔐 Get own user details
   @ApiBearerAuth()
-  @UseGuards(AuthGuard('jwt-user'))
+  @UseGuards(UserAuthGuard)
   @Get('details')
   @ApiOperation({
     description: 'Get User Details',
@@ -24,7 +27,7 @@ export class UserController {
 
   // 🔐 Admin can fetch any user
   @ApiBearerAuth()
-  @UseGuards(AuthGuard('jwt-admin'))
+  @UseGuards(AdminAuthGuard)
   @Get('details/:id')
   @ApiOperation({
     description: 'Get User Details by Id (for admin)',
@@ -36,7 +39,7 @@ export class UserController {
 
   // 🔐 Mark attendance
   @ApiBearerAuth()
-  @UseGuards(AuthGuard('jwt-user'))
+  @UseGuards(UserAuthGuard)
   @Post('attendance')
   @ApiOperation({
     description: 'Mark Attendance',
@@ -54,7 +57,7 @@ export class UserController {
 
   // 🔐 Get drives attended
   @ApiBearerAuth()
-  @UseGuards(AuthGuard('jwt-user'))
+  @UseGuards(UserAuthGuard)
   @Get('drivesattended')
   @ApiOperation({
     description: 'Get Drives Attended',

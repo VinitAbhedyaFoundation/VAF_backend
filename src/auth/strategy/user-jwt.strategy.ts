@@ -6,7 +6,7 @@ import { DatabaseService } from "src/database/database.service";
 import { Role } from "@prisma/client";
 
 @Injectable()
-export class UserJwtStrategy extends PassportStrategy(Strategy, 'jwt-user') {
+export class UserJwtStrategy extends PassportStrategy(Strategy, 'user-jwt') {
   constructor(
     private configService: ConfigService,
     private databaseService: DatabaseService
@@ -14,7 +14,9 @@ export class UserJwtStrategy extends PassportStrategy(Strategy, 'jwt-user') {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-secretOrKey: configService.get<string>('JWT_SECRET_KEY'),    });
+      secretOrKey:
+        configService.get<string>('JWT_SECRET_KEY') || 'supersecret',
+    });
   }
 
   async validate(payload: { sub: number; email: string }) {
