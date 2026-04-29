@@ -8,9 +8,9 @@ datasource db {
 }
 
 model User {
-  id                   Int        @id @default(autoincrement())
+  id                   Int              @id @default(autoincrement())
   name                 String
-  email                String     @unique
+  email                String           @unique
   password             String
   phone                String
   parentNumber         String
@@ -24,27 +24,39 @@ model User {
   state                String?
   collegeOrCompany     String?
   role                 Role
-  drivesCount          Int        @default(0)
-  ploggerId            String     @unique
-  createdAt            DateTime   @default(now())
-  updatedAt            DateTime   @updatedAt
-  drives               Drive[]    @relation("DriveUsers")
+  drivesCount          Int              @default(0)
+  ploggerId            String           @unique
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+
+  // 🔗 Existing relation (keep this)
+  drives               Drive[]          @relation("DriveUsers")
+
+  // 🔥 NEW: participation relation
+  participations       Participation[]
 
   @@index([email])
 }
 
 model Drive {
-  id             Int           @id @default(autoincrement())
+  id             Int              @id @default(autoincrement())
+  title          String
   date           DateTime
   totalHours     Int
-  volunteerCount Int           @default(0)
-  temporaryToken String        @unique
+  volunteerCount Int              @default(0)
+  temporaryToken String           @unique
   expiryDate     DateTime
   locationId     Int
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-  driveLocation  DriveLocation @relation(fields: [locationId], references: [id])
-  users          User[]        @relation("DriveUsers")
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  driveLocation  DriveLocation    @relation(fields: [locationId], references: [id])
+
+  // 🔗 Existing relation (keep this)
+  users          User[]           @relation("DriveUsers")
+
+  // 🔥 NEW: participation relation
+  participations Participation[]
 
   @@index([locationId])
   @@index([temporaryToken])
@@ -57,6 +69,31 @@ model DriveLocation {
   updatedAt DateTime @updatedAt
   drives    Drive[]
 }
+
+//////////////////////////////////////////////////////
+// 🔥 NEW MODEL (CORE FOR DASHBOARD + ANALYTICS)
+//////////////////////////////////////////////////////
+
+model Participation {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  driveId   Int
+  hours     Int      @default(0)
+  waste     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  // 🔗 Relations
+  user  User  @relation(fields: [userId], references: [id])
+  drive Drive @relation(fields: [driveId], references: [id])
+
+  // ⚡ Prevent duplicate participation for same drive
+  @@unique([userId, driveId])
+
+  @@index([userId])
+  @@index([driveId])
+}
+
+//////////////////////////////////////////////////////
 
 enum Gender {
   Male

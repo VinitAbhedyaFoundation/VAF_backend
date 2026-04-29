@@ -3,7 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import { PrismaClient } from "@prisma/client";
 
 @Injectable()
-export class DatabaseService
+export class PrismaService
   extends PrismaClient
   implements OnModuleInit, OnModuleDestroy
 {
@@ -40,7 +40,6 @@ export class DatabaseService
           throw error;
         }
 
-        // wait 3 seconds before retry
         await new Promise((res) => setTimeout(res, 3000));
       }
     }
@@ -51,3 +50,6 @@ export class DatabaseService
     console.log("🛑 Database disconnected");
   }
 }
+
+// 🔥 ADD THIS LINE (IMPORTANT)
+export { PrismaService as DatabaseService };
