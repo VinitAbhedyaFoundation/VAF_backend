@@ -10,6 +10,9 @@ import { DatabaseService } from 'src/database/database.service';
 export class UserService {
   constructor(private databaseService: DatabaseService) {}
 
+  // =========================
+  // 👤 USER DETAILS
+  // =========================
   async userDetail(userId: number) {
     try {
       const user = await this.databaseService.user.findUnique({
@@ -47,12 +50,17 @@ export class UserService {
     }
   }
 
+  // =========================
+  // 📍 MARK ATTENDANCE
+  // =========================
   async markAttendance(temporaryToken: string, userId: number) {
     try {
       const drive = await this.databaseService.drive.findFirst({
         where: { temporaryToken },
         orderBy: { date: 'desc' },
-        include: { users: true },
+        include: {
+          participations: true, // ✅ FIXED
+        },
       });
 
       if (!drive) {
@@ -64,38 +72,49 @@ export class UserService {
         throw new BadRequestException('Token has expired.');
       }
 
-      const isAttendanceAlreadyMarked = drive.users.some(
-        (user) => user.id === userId,
+      // ✅ check via participation
+      const isAttendanceAlreadyMarked = drive.participations.some(
+        (p: any) => p.userId === userId,
       );
 
       if (isAttendanceAlreadyMarked) {
         throw new BadRequestException('Attendance is already marked');
       }
 
+      // ✅ create participation instead of users connect
+      await this.databaseService.participation.create({
+        data: {
+          userId,
+          driveId: drive.id,
+        },
+      });
+
+      // ✅ update drive count
       await this.databaseService.drive.update({
         where: { id: drive.id },
         data: {
-          users: {
-            connect: { id: userId },
-          },
           volunteerCount: {
             increment: 1,
           },
         },
       });
 
+      // ✅ update user stats
       await this.databaseService.user.update({
         where: { id: userId },
         data: {
           drivesCount: {
-            increment: 1, // ✅ FIXED
+            increment: 1,
           },
         },
       });
 
       return { message: 'Attendance marked successfully.' };
     } catch (error) {
-      if (error instanceof BadRequestException || error instanceof NotFoundException) {
+      if (
+        error instanceof BadRequestException ||
+        error instanceof NotFoundException
+      ) {
         throw error;
       }
       console.error('error in mark attendance', error);
@@ -103,14 +122,21 @@ export class UserService {
     }
   }
 
+  // =========================
+  // 📋 DRIVES ATTENDED
+  // =========================
   async drivesAttended(userId: number) {
     try {
       const user = await this.databaseService.user.findUnique({
         where: { id: userId },
         include: {
-          drives: {
+          participations: {
             include: {
-              driveLocation: true, // ✅ FIXED (no extra queries)
+              drive: {
+                include: {
+                  driveLocation: true, // ✅ FIXED
+                },
+              },
             },
           },
         },
@@ -120,18 +146,18 @@ export class UserService {
         throw new NotFoundException('User not found');
       }
 
-      if (user.drives.length === 0) {
+      if (user.participations.length === 0) {
         return {
           message: 'No drives attended',
           drives: [],
         };
       }
 
-      const drives = user.drives.map((drive) => ({
-        id: drive.id,
-        date: drive.date,
-        totalHours: drive.totalHours,
-        location: drive.driveLocation?.location,
+      const drives = user.participations.map((p: any) => ({
+        id: p.drive.id,
+        date: p.drive.date,
+        totalHours: p.drive.totalHours,
+        location: p.drive.driveLocation?.location,
       }));
 
       return {
