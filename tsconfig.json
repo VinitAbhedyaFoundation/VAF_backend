@@ -8,10 +8,15 @@
       "src/*": ["./src/*"]
     },
 
-
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "allowSyntheticDefaultImports": true,
-    "skipLibCheck": true
+    "esModuleInterop": true,
+
+    "strict": true,
+    "skipLibCheck": true,
+
+    "sourceMap": true,
+    "incremental": true
   }
 }

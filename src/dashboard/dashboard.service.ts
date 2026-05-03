@@ -6,12 +6,12 @@ export class DashboardService {
   constructor(private prisma: PrismaService) {}
 
   async getUserDashboard(userId: number) {
-    // 👤 Get user
+    // 🔹 Get user
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
     });
 
-    // 📊 Get participation data
+    // 🔹 Get participations
     const participations = await this.prisma.participation.findMany({
       where: { userId },
       include: {
@@ -26,23 +26,35 @@ export class DashboardService {
       },
     });
 
+    // =========================
     // 📊 Stats
+    // =========================
     const drivesJoined = participations.length;
 
     const hoursVolunteered = participations.reduce(
-      (sum, p) => sum + (p.hours || 0),
+      (sum, p) => sum + (p.hours ?? 0),
       0,
     );
 
     const wasteCollected = participations.reduce(
-      (sum, p) => sum + (p.waste || 0),
+      (sum, p) => sum + (p.waste ?? 0),
       0,
     );
 
     const impactPoints = wasteCollected * 4;
 
-    // 🧠 Activity (group by date)
-    const activityMap: Record<string, any> = {};
+    // =========================
+    // 🧠 Activity (Heatmap)
+    // =========================
+    const activityMap: Record<
+      string,
+      {
+        date: string;
+        hours: number;
+        waste: number;
+        location: string;
+      }
+    > = {};
 
     participations.forEach((p) => {
       const date = p.createdAt.toISOString().split('T')[0];
@@ -52,31 +64,49 @@ export class DashboardService {
           date,
           hours: 0,
           waste: 0,
+          location: p.drive?.driveLocation?.location || 'Unknown',
         };
       }
 
-      activityMap[date].hours += p.hours || 0;
-      activityMap[date].waste += p.waste || 0;
+      activityMap[date].hours += p.hours ?? 0;
+      activityMap[date].waste += p.waste ?? 0;
     });
 
     const activity = Object.values(activityMap);
 
+    // =========================
     // 📋 Recent Drives
+    // =========================
     const recentDrives = participations
       .slice(-3)
       .reverse()
       .map((p) => ({
-        title: p.drive?.driveLocation?.location || 'Drive',
+        title: p.drive?.title || 'Drive',
         location: p.drive?.driveLocation?.location || 'Unknown',
-        date: p.drive?.date,
-        hours: p.hours || 0,
+        date: p.drive?.date || null,
+        hours: p.hours ?? 0,
       }));
 
+    // =========================
+    // 🏆 Certificates
+    // =========================
+    const certificates = participations.map((p) => ({
+      id: p.id,
+      title: `${p.drive?.title || 'Drive'} Participation`,
+      drive: p.drive?.title || 'Drive',
+      hours: p.hours ?? 0,
+      issueDate: p.createdAt,
+      type: 'participation',
+    }));
+
+    // =========================
+    // 🚀 Final Response
+    // =========================
     return {
       user: {
         name: user?.name || 'User',
-        streakWeeks: 4,
-        certificates: 3,
+        streakWeeks: 0,
+        certificates: certificates.length,
       },
       stats: {
         drivesJoined,
@@ -85,12 +115,21 @@ export class DashboardService {
         impactPoints,
       },
       milestone: {
-        level: 'Platinum',
+        level: this.getMilestoneLevel(drivesJoined),
         completed: drivesJoined,
-        total: 12,
       },
       recentDrives,
       activity,
+      certificates,
     };
+  }
+
+  // 🔥 Dynamic milestone logic (no hardcoded limit)
+  private getMilestoneLevel(drives: number): string {
+    if (drives >= 50) return 'Diamond';
+    if (drives >= 25) return 'Platinum';
+    if (drives >= 10) return 'Gold';
+    if (drives >= 5) return 'Silver';
+    return 'Bronze';
   }
 }

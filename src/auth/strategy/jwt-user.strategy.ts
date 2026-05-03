@@ -6,7 +6,7 @@ import { DatabaseService } from "src/database/database.service";
 import { Role } from "@prisma/client";
 
 @Injectable()
-export class UserJwtStrategy extends PassportStrategy(Strategy, 'jwt-user') {
+export class UserJwtStrategy extends PassportStrategy(Strategy, 'jwt') { // ✅ FIXED
   constructor(
     private configService: ConfigService,
     private databaseService: DatabaseService
@@ -24,19 +24,16 @@ export class UserJwtStrategy extends PassportStrategy(Strategy, 'jwt-user') {
       where: { id: payload.sub },
     });
 
-    // ❌ user not found
     if (!user) {
       throw new UnauthorizedException('User not found');
     }
 
-    // ❌ not a normal user
     if (user.role !== Role.User) {
       throw new UnauthorizedException('Access denied');
     }
 
-    // ✅ safe return (no password)
     return {
-      userId: user.id,
+      sub: user.id, // ✅ important for controller
       email: user.email,
       name: user.name,
       role: user.role,

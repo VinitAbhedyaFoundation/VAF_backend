@@ -36,7 +36,7 @@ export class AuthController {
 
   // 🔥 NEW: GET CURRENT USER
   @ApiBearerAuth()
-  @UseGuards(AuthGuard('jwt-user'))
+  @UseGuards(AuthGuard('jwt'))
   @Get('me')
   @ApiOperation({
     description: 'Get current logged in user',
@@ -48,7 +48,7 @@ export class AuthController {
 
   // auth/update-user
   @ApiBearerAuth()
-  @UseGuards(AuthGuard('jwt-user'))
+  @UseGuards(AuthGuard('jwt'))
   @Patch('update-user')
   @ApiOperation({
     description: 'Update API for USER',
