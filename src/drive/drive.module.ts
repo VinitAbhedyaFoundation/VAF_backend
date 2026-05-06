@@ -8,5 +8,6 @@ import { AuthModule } from 'src/auth/auth.module';
   imports: [DatabaseModule, AuthModule],
   controllers: [DriveController],
   providers: [DriveService],
+  exports: [DriveService],
 })
 export class DriveModule {}

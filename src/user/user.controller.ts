@@ -1,51 +1,73 @@
-import { Controller, Get, Post, Body, Param, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  UseGuards,
+  Query,
+} from '@nestjs/common';
 import { UserService } from './user.service';
 import { UserId } from '../common/decorator/user-id.decorator';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { MarkAttendanceDto } from './dto/mark-attendance.dto';
 
-// ✅ IMPORT YOUR GUARDS
-import { UserAuthGuard } from '../auth/guards/user-auth.guard';
-import { AdminAuthGuard } from '../auth/guards/admin-auth.guard';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth-guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 
 @ApiTags('User')
 @Controller('user')
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
-  // 🔐 Get own user details
+  // 🔐 USER: Get own details (internal id)
   @ApiBearerAuth()
-  @UseGuards(UserAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('User', 'Admin', 'SuperAdmin')
   @Get('details')
-  @ApiOperation({
-    description: 'Get User Details',
-    summary: 'Input - User Token , output - User details',
-  })
-  async userDetail(@UserId() userId: number) {
-    return this.userService.userDetail(userId);
+  @ApiOperation({ description: 'Get current logged-in user details' })
+  userDetail(@UserId() userId: number) {
+    return this.userService.getUserById(userId);
   }
 
-  // 🔐 Admin can fetch any user
+  // 🔐 ADMIN: Get user by ploggerId
   @ApiBearerAuth()
-  @UseGuards(AdminAuthGuard)
-  @Get('details/:id')
-  @ApiOperation({
-    description: 'Get User Details by Id (for admin)',
-    summary: 'Input - User Id + Admin Token , output - User details',
-  })
-  async getUserById(@Param('id') id: string) {
-    return this.userService.userDetail(+id);
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('Admin', 'SuperAdmin')
+  @Get('details/:ploggerId')
+  @ApiOperation({ description: 'Get user by ploggerId (Admin only)' })
+  getUserByPloggerId(@Param('ploggerId') ploggerId: string) {
+    return this.userService.getUserByPloggerId(ploggerId);
   }
 
-  // 🔐 Mark attendance
+  // 🔐 ADMIN: Get all users (IMPORTANT)
   @ApiBearerAuth()
-  @UseGuards(UserAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('Admin', 'SuperAdmin')
+  @Get('all')
+  @ApiOperation({ description: 'Get all users (Admin)' })
+  getAllUsers() {
+    return this.userService.getAllUsers();
+  }
+
+  // 🔐 ADMIN: Search users (IMPORTANT)
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('Admin', 'SuperAdmin')
+  @Get('search')
+  @ApiOperation({ description: 'Search users (Admin)' })
+  searchUsers(@Query('q') query: string) {
+    return this.userService.searchUsers(query);
+  }
+
+  // 🔐 USER: Mark attendance
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('User')
   @Post('attendance')
-  @ApiOperation({
-    description: 'Mark Attendance',
-    summary: 'Input - Temporary Token + User Token , output - Success message',
-  })
-  async markAttendance(
+  @ApiOperation({ description: 'Mark Attendance' })
+  markAttendance(
     @Body() markAttendanceData: MarkAttendanceDto,
     @UserId() userId: number,
   ) {
@@ -55,15 +77,13 @@ export class UserController {
     );
   }
 
-  // 🔐 Get drives attended
+  // 🔐 USER: Get drives attended
   @ApiBearerAuth()
-  @UseGuards(UserAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('User')
   @Get('drivesattended')
-  @ApiOperation({
-    description: 'Get Drives Attended',
-    summary: 'Input - User Token , output - Drives list',
-  })
-  async drivesAttended(@UserId() userId: number) {
+  @ApiOperation({ description: 'Get Drives Attended' })
+  drivesAttended(@UserId() userId: number) {
     return this.userService.drivesAttended(userId);
   }
 }

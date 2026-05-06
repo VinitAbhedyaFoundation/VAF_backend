@@ -7,10 +7,14 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+//////////////////////////////////////////////////////
+// 🔹 USER
+//////////////////////////////////////////////////////
+
 model User {
-  id                   Int        @id @default(autoincrement())
+  id                   Int             @id @default(autoincrement())
   name                 String
-  email                String     @unique
+  email                String          @unique
   password             String
   phone                String
   parentNumber         String
@@ -24,31 +28,45 @@ model User {
   state                String?
   collegeOrCompany     String?
   role                 Role
-  drivesCount          Int        @default(0)
-  ploggerId            String     @unique
-  createdAt            DateTime   @default(now())
-  updatedAt            DateTime   @updatedAt
-  drives               Drive[]    @relation("DriveUsers")
+  drivesCount          Int             @default(0)
+  ploggerId            String          @unique
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+
+  // 🔗 Relations
+  participations Participation[]
+  messagesSent   Message[]
+  notifications  Notification[]
 
   @@index([email])
 }
 
+//////////////////////////////////////////////////////
+// 🔹 DRIVE
+//////////////////////////////////////////////////////
+
 model Drive {
-  id             Int           @id @default(autoincrement())
+  id             Int             @id @default(autoincrement())
+  title          String?
   date           DateTime
   totalHours     Int
-  volunteerCount Int           @default(0)
-  temporaryToken String        @unique
+  volunteerCount Int             @default(0)
+  temporaryToken String          @unique
   expiryDate     DateTime
   locationId     Int
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-  driveLocation  DriveLocation @relation(fields: [locationId], references: [id])
-  users          User[]        @relation("DriveUsers")
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  driveLocation  DriveLocation   @relation(fields: [locationId], references: [id])
+  participations Participation[]
 
   @@index([locationId])
   @@index([temporaryToken])
 }
+
+//////////////////////////////////////////////////////
+// 🔹 DRIVE LOCATION
+//////////////////////////////////////////////////////
 
 model DriveLocation {
   id        Int      @id @default(autoincrement())
@@ -57,6 +75,64 @@ model DriveLocation {
   updatedAt DateTime @updatedAt
   drives    Drive[]
 }
+
+//////////////////////////////////////////////////////
+// 🔹 PARTICIPATION (CORE ANALYTICS)
+//////////////////////////////////////////////////////
+
+model Participation {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  driveId   Int
+  hours     Int      @default(0)
+  waste     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id])
+  drive Drive @relation(fields: [driveId], references: [id])
+
+  @@unique([userId, driveId])
+  @@index([userId])
+  @@index([driveId])
+}
+
+//////////////////////////////////////////////////////
+// 🔹 MESSAGE (BROADCAST SYSTEM)
+//////////////////////////////////////////////////////
+
+model Message {
+  id          Int      @id @default(autoincrement())
+  subject     String
+  content     String
+
+  senderId    Int
+  sender      User     @relation(fields: [senderId], references: [id])
+
+  isBroadcast Boolean  @default(true)
+
+  createdAt   DateTime @default(now())
+
+  @@index([senderId])
+}
+
+//////////////////////////////////////////////////////
+// 🔹 NOTIFICATION (OPTIONAL FEATURE)
+//////////////////////////////////////////////////////
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int?
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+}
+
+//////////////////////////////////////////////////////
+// 🔹 ENUMS
+//////////////////////////////////////////////////////
 
 enum Gender {
   Male

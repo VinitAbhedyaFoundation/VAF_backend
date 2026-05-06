@@ -26,7 +26,7 @@ export class RolesGuard implements CanActivate {
 
     // 3. Get user from request (added by JWT strategy)
     const request = context.switchToHttp().getRequest();
-    const user = request.user;
+   const user = request.user as { role: Role };
 
     // 4. Role hierarchy (important concept)
     const roleHierarchy: Record<Role, number> = {

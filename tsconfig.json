@@ -3,15 +3,25 @@
     "module": "commonjs",
     "target": "ES2021",
     "outDir": "./dist",
+    "rootDir": "./src",
 
+    "baseUrl": "./",
     "paths": {
-      "src/*": ["./src/*"]
+      "src/*": ["src/*"]
     },
 
+    "moduleResolution": "node",
 
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
+
     "allowSyntheticDefaultImports": true,
-    "skipLibCheck": true
-  }
+    "esModuleInterop": true,
+
+    "skipLibCheck": true,
+    "strict": true,
+
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "test"]
 }

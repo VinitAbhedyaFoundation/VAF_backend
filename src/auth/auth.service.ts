@@ -111,7 +111,16 @@ export class AuthService {
         id: user.id,
       });
 
-      return { message: 'Login Successful', token, role: user.role };
+      return {
+        message: 'Login Successful',
+        token,
+        role: user.role,
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+        },
+      };
 
     } catch (error: unknown) {
       console.error('LOGIN ERROR:', error);

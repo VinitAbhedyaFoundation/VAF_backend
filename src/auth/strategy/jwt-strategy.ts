@@ -3,10 +3,9 @@ import { ConfigService } from "@nestjs/config";
 import { PassportStrategy } from "@nestjs/passport";
 import { Strategy, ExtractJwt } from "passport-jwt";
 import { DatabaseService } from "src/database/database.service";
-import { Role } from "@prisma/client";
 
 @Injectable()
-export class AdminJwtStrategy extends PassportStrategy(Strategy, 'admin-jwt') {
+export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   constructor(
     private configService: ConfigService,
     private databaseService: DatabaseService
@@ -14,28 +13,24 @@ export class AdminJwtStrategy extends PassportStrategy(Strategy, 'admin-jwt') {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-     secretOrKey: configService.get<string>('JWT_SECRET_KEY') || 'supersecret',
+      secretOrKey:
+        configService.get<string>('JWT_SECRET_KEY') || 'supersecret',
     });
   }
 
-  async validate(payload: any) {
+  async validate(payload: { sub: number; email: string }) {
     const user = await this.databaseService.user.findUnique({
       where: { id: payload.sub },
     });
 
-    // ❌ user not found
     if (!user) {
       throw new UnauthorizedException('User not found');
     }
 
-    // ❌ not admin or superadmin
-    if (user.role !== Role.Admin && user.role !== Role.SuperAdmin) {
-      throw new UnauthorizedException('Access denied');
-    }
-
-    // ✅ remove password
-    const { password, ...result } = user;
-
-    return result;
+    return {
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+    };
   }
 }

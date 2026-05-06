@@ -5,5 +5,5 @@ export class CreateDriveLocationDto {
     @ApiProperty()
     @IsString()
     @IsNotEmpty()
-    location: string;
+    location!: string;
 }
