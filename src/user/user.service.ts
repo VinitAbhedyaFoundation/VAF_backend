@@ -4,40 +4,42 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { DatabaseService } from 'src/database/database.service';
+
+import { DatabaseService } from '../database/database.service';
 
 @Injectable()
 export class UserService {
-  constructor(private databaseService: DatabaseService) {}
+  constructor(
+    private databaseService: DatabaseService,
+  ) {}
 
   // =========================
   // 👤 USER DETAILS
   // =========================
-  async userDetail(userId: number) {
+
+  async getUserById(userId: number) {
     try {
-      const user = await this.databaseService.user.findUnique({
-        where: { id: userId },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          phone: true,
-          parentNumber: true,
-          bloodGroup: true,
-          gender: true,
-          occupation: true,
-          highestQualification: true,
-          address: true,
-          city: true,
-          state: true,
-          collegeOrCompany: true,
-          role: true,
-          ploggerId: true,
-        },
-      });
+      const user =
+        await this.databaseService.user.findUnique(
+          {
+            where: {
+              id: userId,
+            },
+
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              role: true,
+              ploggerId: true,
+            },
+          },
+        );
 
       if (!user) {
-        throw new NotFoundException('User not found');
+        throw new NotFoundException(
+          'User not found',
+        );
       }
 
       return {
@@ -45,128 +47,381 @@ export class UserService {
         user,
       };
     } catch (error) {
-      console.error('error in user detail', error);
-      throw new InternalServerErrorException('Something went wrong');
+      if (
+        error instanceof NotFoundException
+      ) {
+        throw error;
+      }
+
+      console.error(
+        'getUserById error:',
+        error,
+      );
+
+      throw new InternalServerErrorException(
+        'Something went wrong',
+      );
+    }
+  }
+
+  // =========================
+  // 👤 GET USER BY PLOGGER ID
+  // =========================
+
+  async getUserByPloggerId(
+    ploggerId: string,
+  ) {
+    try {
+      const user =
+        await this.databaseService.user.findUnique(
+          {
+            where: {
+              ploggerId,
+            },
+
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              role: true,
+              ploggerId: true,
+            },
+          },
+        );
+
+      if (!user) {
+        throw new NotFoundException(
+          'User not found',
+        );
+      }
+
+      return {
+        message: 'User Details',
+        user,
+      };
+    } catch (error) {
+      if (
+        error instanceof NotFoundException
+      ) {
+        throw error;
+      }
+
+      console.error(
+        'getUserByPloggerId error:',
+        error,
+      );
+
+      throw new InternalServerErrorException(
+        'Something went wrong',
+      );
+    }
+  }
+
+  // =========================
+  // 👥 GET ALL USERS
+  // =========================
+
+  async getAllUsers() {
+    try {
+      const users =
+        await this.databaseService.user.findMany(
+          {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              ploggerId: true,
+              role: true,
+            },
+
+            orderBy: {
+              id: 'desc',
+            },
+          },
+        );
+
+      return {
+        message:
+          'Users fetched successfully',
+        users,
+      };
+    } catch (error) {
+      console.error(
+        'getAllUsers error:',
+        error,
+      );
+
+      throw new InternalServerErrorException(
+        'Something went wrong',
+      );
+    }
+  }
+
+  // =========================
+  // 🔍 SEARCH USERS
+  // =========================
+
+  async searchUsers(query: string) {
+    try {
+      if (!query) {
+        throw new BadRequestException(
+          'Search query is required',
+        );
+      }
+
+      const users =
+        await this.databaseService.user.findMany(
+          {
+            where: {
+              OR: [
+                {
+                  name: {
+                    contains: query,
+                    mode:
+                      'insensitive',
+                  },
+                },
+
+                {
+                  email: {
+                    contains: query,
+                    mode:
+                      'insensitive',
+                  },
+                },
+
+                {
+                  ploggerId: {
+                    contains: query,
+                  },
+                },
+              ],
+            },
+
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              ploggerId: true,
+              role: true,
+            },
+          },
+        );
+
+      return {
+        message: 'Search results',
+        users,
+      };
+    } catch (error) {
+      if (
+        error instanceof BadRequestException
+      ) {
+        throw error;
+      }
+
+      console.error(
+        'searchUsers error:',
+        error,
+      );
+
+      throw new InternalServerErrorException(
+        'Something went wrong',
+      );
     }
   }
 
   // =========================
   // 📍 MARK ATTENDANCE
   // =========================
-  async markAttendance(temporaryToken: string, userId: number) {
+
+  async markAttendance(
+    temporaryToken: string,
+    userId: number,
+  ) {
     try {
-      const drive = await this.databaseService.drive.findFirst({
-        where: { temporaryToken },
-        orderBy: { date: 'desc' },
-        include: {
-          participations: true, // ✅ FIXED
-        },
-      });
+      if (
+        !temporaryToken ||
+        temporaryToken.length < 10
+      ) {
+        throw new BadRequestException(
+          'Invalid token',
+        );
+      }
+
+      const drive =
+        await this.databaseService.drive.findFirst(
+          {
+            where: {
+              temporaryToken,
+            },
+
+            orderBy: {
+              date: 'desc',
+            },
+
+            select: {
+              id: true,
+              expiryDate: true,
+            },
+          },
+        );
 
       if (!drive) {
-        throw new NotFoundException('Drive not found or token is invalid.');
+        throw new NotFoundException(
+          'Drive not found or token is invalid.',
+        );
       }
 
-      const currDate = new Date();
-      if (drive.expiryDate < currDate) {
-        throw new BadRequestException('Token has expired.');
+      if (
+        new Date(
+          drive.expiryDate,
+        ).getTime() < Date.now()
+      ) {
+        throw new BadRequestException(
+          'Token has expired.',
+        );
       }
 
-      // ✅ check via participation
-      const isAttendanceAlreadyMarked = drive.participations.some(
-        (p: any) => p.userId === userId,
+      const existing =
+        await this.databaseService.participation.findUnique(
+          {
+            where: {
+              userId_driveId: {
+                userId,
+                driveId: drive.id,
+              },
+            },
+          },
+        );
+
+      if (existing) {
+        throw new BadRequestException(
+          'Attendance already marked',
+        );
+      }
+
+      await this.databaseService.$transaction(
+        [
+          this.databaseService.participation.create(
+            {
+              data: {
+                userId,
+                driveId: drive.id,
+              },
+            },
+          ),
+
+          this.databaseService.drive.update(
+            {
+              where: {
+                id: drive.id,
+              },
+
+              data: {
+                volunteerCount: {
+                  increment: 1,
+                },
+              },
+            },
+          ),
+
+          this.databaseService.user.update(
+            {
+              where: {
+                id: userId,
+              },
+
+              data: {
+                drivesCount: {
+                  increment: 1,
+                },
+              },
+            },
+          ),
+        ],
       );
 
-      if (isAttendanceAlreadyMarked) {
-        throw new BadRequestException('Attendance is already marked');
-      }
-
-      // ✅ create participation instead of users connect
-      await this.databaseService.participation.create({
-        data: {
-          userId,
-          driveId: drive.id,
-        },
-      });
-
-      // ✅ update drive count
-      await this.databaseService.drive.update({
-        where: { id: drive.id },
-        data: {
-          volunteerCount: {
-            increment: 1,
-          },
-        },
-      });
-
-      // ✅ update user stats
-      await this.databaseService.user.update({
-        where: { id: userId },
-        data: {
-          drivesCount: {
-            increment: 1,
-          },
-        },
-      });
-
-      return { message: 'Attendance marked successfully.' };
+      return {
+        message:
+          'Attendance marked successfully',
+      };
     } catch (error) {
       if (
-        error instanceof BadRequestException ||
-        error instanceof NotFoundException
+        error instanceof
+          BadRequestException ||
+        error instanceof
+          NotFoundException
       ) {
         throw error;
       }
-      console.error('error in mark attendance', error);
-      throw new InternalServerErrorException('Something went wrong');
+
+      console.error(
+        'markAttendance error:',
+        error,
+      );
+
+      throw new InternalServerErrorException(
+        'Something went wrong',
+      );
     }
   }
 
   // =========================
   // 📋 DRIVES ATTENDED
   // =========================
-  async drivesAttended(userId: number) {
+
+  async drivesAttended(
+    userId: number,
+  ) {
     try {
-      const user = await this.databaseService.user.findUnique({
-        where: { id: userId },
-        include: {
-          participations: {
+      const participations =
+        await this.databaseService.participation.findMany(
+          {
+            where: {
+              userId,
+            },
+
             include: {
               drive: {
                 include: {
-                  driveLocation: true, // ✅ FIXED
+                  driveLocation: true,
                 },
               },
             },
           },
-        },
-      });
+        );
 
-      if (!user) {
-        throw new NotFoundException('User not found');
-      }
+      const drives =
+        participations.map(
+          (p: any) => ({
+            id: p.drive.id,
+            date: p.drive.date,
+            totalHours:
+              p.drive.totalHours,
 
-      if (user.participations.length === 0) {
-        return {
-          message: 'No drives attended',
-          drives: [],
-        };
-      }
-
-      const drives = user.participations.map((p: any) => ({
-        id: p.drive.id,
-        date: p.drive.date,
-        totalHours: p.drive.totalHours,
-        location: p.drive.driveLocation?.location,
-      }));
+            location:
+              p.drive
+                .driveLocation
+                ?.location || null,
+          }),
+        );
 
       return {
-        message: 'Drives Attended',
+        message: drives.length
+          ? 'Drives Attended'
+          : 'No drives attended',
+
         drives,
       };
     } catch (error) {
-      console.error('Error in drives attended:', error);
-      throw new InternalServerErrorException('Something went wrong');
+      console.error(
+        'drivesAttended error:',
+        error,
+      );
+
+      throw new InternalServerErrorException(
+        'Something went wrong',
+      );
     }
   }
 }

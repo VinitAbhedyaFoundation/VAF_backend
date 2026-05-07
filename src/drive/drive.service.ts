@@ -1,224 +1,553 @@
-import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
+
+import { randomBytes } from 'crypto';
+
+import { DatabaseService } from '../database/database.service';
+
 import { CreateDriveDto } from './dto/create-drive.dto';
 import { CreateDriveLocationDto } from './dto/drive-location.dto';
-import { DatabaseService } from '../database/database.service';
 import { UpdateDriveDto } from './dto/update-drive.dto';
 
 @Injectable()
 export class DriveService {
-  constructor(private databaseService: DatabaseService) { }
+  private readonly logger = new Logger(DriveService.name);
 
- async createDrive(createDriveDto: CreateDriveDto) {
-  const { locationId, date, totalHours, expiryDate, title } = createDriveDto;
+  constructor(
+    private databaseService: DatabaseService,
+  ) {}
 
-  try {
-    const isLocationIdValid = await this.databaseService.driveLocation.findUnique({
-      where: { id: locationId }
-    });
+  // =========================
+  // 🔐 SECURE TOKEN
+  // =========================
 
-    if (!isLocationIdValid) {
-      throw new BadRequestException('Invalid Location Id');
-    }
+  generateSecureToken(): string {
+    return randomBytes(16).toString('hex');
+  }
 
-    const temporaryToken = this.generateOtp();
+  // =========================
+  // 🟢 CREATE DRIVE
+  // =========================
 
-    const drive = await this.databaseService.drive.create({
-      data: {
-        title,
-        date,
-        totalHours,
-        expiryDate,
-        temporaryToken,
+  async createDrive(
+    createDriveDto: CreateDriveDto,
+  ) {
+    const {
+      title,
+      locationId,
+      date,
+      totalHours,
+      expiryDate,
+    } = createDriveDto;
 
-        driveLocation: {
-          connect: { id: locationId },
-        },
+    try {
+      const isLocationValid =
+        await this.databaseService.driveLocation.findUnique(
+          {
+            where: {
+              id: locationId,
+            },
+          },
+        );
+
+      if (!isLocationValid) {
+        throw new BadRequestException(
+          'Invalid request',
+        );
       }
-    });
 
-    return {
-      message: 'Drive Created Successfully',
-      drive,
-    };
+      const parsedDate = new Date(date);
 
-  } catch (error) {
-    console.error("🔥 ERROR in createDrive:", error);
-    throw error;
-  }
-}
+      if (
+        isNaN(parsedDate.getTime())
+      ) {
+        throw new BadRequestException(
+          'Invalid date',
+        );
+      }
 
-  async createDriveLocation(createDriveLocationData: CreateDriveLocationDto) {
-    const location = createDriveLocationData.location;
-    try {
-      const driveLocation = await this.databaseService.driveLocation.create({
-        data: { location }
-      });
+      const temporaryToken =
+        this.generateSecureToken();
 
-      return {
-        message: 'Drive Location Created Successfully',
-        data: driveLocation,
-      };
+      const drive =
+        await this.databaseService.drive.create(
+          {
+            data: {
+              title,
+              date: parsedDate,
+              totalHours,
+              expiryDate,
+              temporaryToken,
+              locationId,
+            },
 
-    } catch (error) {
-      console.error("🔥 ERROR in createDriveLocation:", error);
-      throw error;
-    }
-  }
+            select: {
+              id: true,
+              title: true,
+              date: true,
+              totalHours: true,
+              expiryDate: true,
+              locationId: true,
+            },
+          },
+        );
 
-  async findAllDrives() {
-    try {
-      const drives = await this.databaseService.drive.findMany({
-        orderBy: { id: 'asc' }
-      });
-
-      const drivesWithLocations = await Promise.all(
-        drives.map(async (drive) => {
-          const location = await this.databaseService.driveLocation.findUnique({
-            where: { id: drive.locationId },
-          });
-
-          return {
-            ...drive,
-            location: location?.location || "Unknown",
-          };
-        })
+      this.logger.log(
+        `Drive created: ${drive.id}`,
       );
 
-      return drivesWithLocations;
-
+      return {
+        message:
+          'Drive Created Successfully',
+        drive,
+      };
     } catch (error) {
-      console.error('🔥 Error fetching drives:', error);
-      throw error;
+      if (
+        error instanceof BadRequestException
+      ) {
+        throw error;
+      }
+
+      this.logger.error(
+        'Create drive failed',
+      );
+
+      throw new InternalServerErrorException(
+        'Failed to create drive',
+      );
     }
   }
 
-  async findAllLocations() {
+  // =========================
+  // 🟢 CREATE LOCATION
+  // =========================
+
+  async createDriveLocation(
+    createDriveLocationData: CreateDriveLocationDto,
+  ) {
     try {
-      return await this.databaseService.driveLocation.findMany({
-        orderBy: { id: 'asc' }
-      });
+      const driveLocation =
+        await this.databaseService.driveLocation.create(
+          {
+            data: {
+              location:
+                createDriveLocationData.location,
+            },
+
+            select: {
+              id: true,
+              location: true,
+            },
+          },
+        );
+
+      this.logger.log(
+        `Location created: ${driveLocation.id}`,
+      );
+
+      return {
+        message:
+          'Drive Location Created Successfully',
+        data: driveLocation,
+      };
     } catch (error) {
-      console.error('🔥 Error fetching locations:', error);
-      throw error;
+      this.logger.error(
+        'Create location failed',
+      );
+
+      throw new InternalServerErrorException(
+        'Failed to create drive location',
+      );
     }
   }
+
+  // =========================
+  // 🟢 GET ALL DRIVES
+  // =========================
+
+  async findAllDrives(
+    page = 1,
+    limit = 10,
+  ) {
+    try {
+      limit = Math.min(limit, 50);
+
+      const skip = (page - 1) * limit;
+
+      const drives =
+        await this.databaseService.drive.findMany(
+          {
+            skip,
+            take: limit,
+
+            orderBy: {
+              id: 'asc',
+            },
+
+            include: {
+              driveLocation: {
+                select: {
+                  location: true,
+                },
+              },
+            },
+          },
+        );
+
+      return drives.map((drive) => ({
+        id: drive.id,
+        title: drive.title,
+        date: drive.date,
+        totalHours: drive.totalHours,
+        expiryDate: drive.expiryDate,
+        location:
+          drive.driveLocation?.location ||
+          null,
+      }));
+    } catch (error) {
+      this.logger.error(
+        'Fetch drives failed',
+      );
+
+      throw new InternalServerErrorException(
+        'Failed to fetch drives',
+      );
+    }
+  }
+
+  // =========================
+  // 🟢 GET ALL LOCATIONS
+  // =========================
+
+  async findAllLocations(
+    page = 1,
+    limit = 10,
+  ) {
+    try {
+      limit = Math.min(limit, 50);
+
+      const skip = (page - 1) * limit;
+
+      return await this.databaseService.driveLocation.findMany(
+        {
+          skip,
+          take: limit,
+
+          orderBy: {
+            id: 'asc',
+          },
+
+          select: {
+            id: true,
+            location: true,
+          },
+        },
+      );
+    } catch (error) {
+      this.logger.error(
+        'Fetch locations failed',
+      );
+
+      throw new InternalServerErrorException(
+        'Failed to fetch locations',
+      );
+    }
+  }
+
+  // =========================
+  // 🟢 GET ONE DRIVE
+  // =========================
 
   async findOne(id: number) {
+    if (!id || id < 1) {
+      throw new BadRequestException(
+        'Invalid ID',
+      );
+    }
+
     try {
-      const drive = await this.databaseService.drive.findUnique({
-        where: { id }
-      });
+      const drive =
+        await this.databaseService.drive.findUnique(
+          {
+            where: {
+              id,
+            },
+
+            include: {
+              driveLocation: {
+                select: {
+                  location: true,
+                },
+              },
+            },
+          },
+        );
 
       if (!drive) {
-        throw new BadRequestException('Drive not found');
+        throw new BadRequestException(
+          'Drive not found',
+        );
       }
 
       return {
-        message: 'Drive Found',
-        drive,
+        id: drive.id,
+        title: drive.title,
+        date: drive.date,
+        totalHours: drive.totalHours,
+        expiryDate: drive.expiryDate,
+        location:
+          drive.driveLocation?.location ||
+          null,
       };
-
     } catch (error) {
-      console.error('🔥 Error fetching drive:', error);
-      throw error;
+      if (
+        error instanceof BadRequestException
+      ) {
+        throw error;
+      }
+
+      this.logger.error(
+        'Fetch drive failed',
+      );
+
+      throw new InternalServerErrorException(
+        'Failed to fetch drive',
+      );
     }
   }
 
-  async update(id: number, updateDriveData: UpdateDriveDto) {
-    const { locationId, date, totalHours, expiryDate } = updateDriveData;
+  // =========================
+  // 🟢 UPDATE DRIVE
+  // =========================
+
+  async update(
+    id: number,
+    updateDriveData: UpdateDriveDto,
+  ) {
+    if (!id || id < 1) {
+      throw new BadRequestException(
+        'Invalid ID',
+      );
+    }
+
+    const {
+      title,
+      locationId,
+      date,
+      totalHours,
+      expiryDate,
+    } = updateDriveData;
 
     try {
-      const drive = await this.databaseService.drive.update({
-        where: { id },
-        data: {
-          date,
-          locationId,
-          totalHours,
-          expiryDate,
+      if (locationId) {
+        const isLocationValid =
+          await this.databaseService.driveLocation.findUnique(
+            {
+              where: {
+                id: locationId,
+              },
+            },
+          );
+
+        if (!isLocationValid) {
+          throw new BadRequestException(
+            'Invalid request',
+          );
         }
-      });
+      }
+
+      let parsedDate:
+        | Date
+        | undefined;
+
+      if (date) {
+        parsedDate = new Date(date);
+
+        if (
+          isNaN(parsedDate.getTime())
+        ) {
+          throw new BadRequestException(
+            'Invalid date',
+          );
+        }
+      }
+
+      const drive =
+        await this.databaseService.drive.update(
+          {
+            where: {
+              id,
+            },
+
+            data: {
+              title,
+              date: parsedDate,
+              locationId,
+              totalHours,
+              expiryDate,
+            },
+
+            select: {
+              id: true,
+              title: true,
+              date: true,
+              totalHours: true,
+              expiryDate: true,
+              locationId: true,
+            },
+          },
+        );
+
+      this.logger.log(
+        `Drive updated: ${drive.id}`,
+      );
 
       return {
-        message: 'Drive Updated Successfully',
+        message:
+          'Drive Updated Successfully',
         drive,
       };
-
     } catch (error) {
-      console.error('🔥 Error updating drive:', error);
-      throw error;
+      if (
+        error instanceof BadRequestException
+      ) {
+        throw error;
+      }
+
+      this.logger.error(
+        'Update drive failed',
+      );
+
+      throw new InternalServerErrorException(
+        'Failed to update drive',
+      );
     }
   }
+
+  // =========================
+  // 🟢 FIND BY DATE
+  // =========================
 
   async findByDate(date: string) {
     try {
-      const driveDate = new Date(date);
+      const parsedDate = new Date(date);
 
-      const drives = await this.databaseService.drive.findMany({
-        where: { date: driveDate }
-      });
-
-      if (drives.length === 0) {
-        throw new BadRequestException('No drives found for this date');
+      if (
+        isNaN(parsedDate.getTime())
+      ) {
+        throw new BadRequestException(
+          'Invalid date',
+        );
       }
 
-      return {
-        message: 'Drives found',
-        drives,
-      };
+      parsedDate.setHours(
+        0,
+        0,
+        0,
+        0,
+      );
 
+      const drives =
+        await this.databaseService.drive.findMany(
+          {
+            where: {
+              date: parsedDate,
+            },
+
+            include: {
+              driveLocation: {
+                select: {
+                  location: true,
+                },
+              },
+            },
+          },
+        );
+
+      if (!drives.length) {
+        throw new BadRequestException(
+          'No drives found',
+        );
+      }
+
+      return drives.map((drive) => ({
+        id: drive.id,
+        title: drive.title,
+        date: drive.date,
+        totalHours: drive.totalHours,
+        expiryDate: drive.expiryDate,
+        location:
+          drive.driveLocation?.location ||
+          null,
+      }));
     } catch (error) {
-      console.error('🔥 Error fetching drives by date:', error);
-      throw error;
+      if (
+        error instanceof BadRequestException
+      ) {
+        throw error;
+      }
+
+      this.logger.error(
+        'Fetch by date failed',
+      );
+
+      throw new InternalServerErrorException(
+        'Failed to fetch drives',
+      );
     }
   }
 
-  // ✅ FINAL FIXED METHOD
-async getUpcomingDrives() {
-  try {
-    const drives = await this.databaseService.drive.findMany({
-      where: {
-        date: {
-          gte: new Date(),
-        },
-      },
-      orderBy: {
-        date: 'asc',
-      },
-    });
+  // =========================
+  // 🟢 UPCOMING DRIVES
+  // =========================
 
-    const result = await Promise.all(
-      drives.map(async (drive) => {
-        const location = await this.databaseService.driveLocation.findUnique({
-          where: { id: drive.locationId },
-        });
+  async getUpcomingDrives() {
+    try {
+      const drives =
+        await this.databaseService.drive.findMany(
+          {
+            where: {
+              date: {
+                gte: new Date(),
+              },
+            },
 
-        return {
-          id: drive.id,
-          title: drive.title, // ✅ FIX ADDED
-          date: drive.date,
-          totalHours: drive.totalHours,
-          expiryDate: drive.expiryDate,
-          location: location?.location || "Unknown",
-        };
-      })
-    );
+            orderBy: {
+              date: 'asc',
+            },
 
-    return result;
+            include: {
+              driveLocation: {
+                select: {
+                  location: true,
+                },
+              },
+            },
+          },
+        );
 
-  } catch (error) {
-    console.error("🔥 REAL ERROR:", error);
-    throw error;
-  }
-}
+      return drives.map((drive) => ({
+        id: drive.id,
+        title: drive.title,
+        date: drive.date,
+        totalHours: drive.totalHours,
+        expiryDate: drive.expiryDate,
+        location:
+          drive.driveLocation?.location ||
+          null,
+      }));
+    } catch (error) {
+      this.logger.error(
+        'Fetch upcoming drives failed',
+      );
 
-  generateOtp() {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let otp = '';
-
-    for (let i = 0; i < 6; i++) {
-      otp += chars[Math.floor(Math.random() * chars.length)];
+      throw new InternalServerErrorException(
+        'Failed to fetch upcoming drives',
+      );
     }
-
-    return otp;
   }
 }

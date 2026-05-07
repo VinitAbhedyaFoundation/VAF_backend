@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
 import { DashboardController } from './dashboard.controller';
 import { DashboardService } from './dashboard.service';
-import { AuthModule } from 'src/auth/auth.module';        // ✅ ADD
-import { DatabaseModule } from 'src/database/database.module'; // (if using prisma)
+import { AuthModule } from '../auth/auth.module';        // ✅ ADD
+import { DatabaseModule } from '../database/database.module'; // (if using prisma)
 
 @Module({
   imports: [

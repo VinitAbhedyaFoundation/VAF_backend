@@ -10,6 +10,10 @@ import { AuthModule } from './auth/auth.module';
 import { DriveModule } from './drive/drive.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { DatabaseModule } from './database/database.module';
+import { AdminModule } from './admin/admin.module';
+import { AttendanceModule } from './attendance/attendance.module';
+import { MessageModule } from './message/message.module';
+import { MailModule } from './mail/mail.module';
 
 @Module({
   imports: [
@@ -18,20 +22,20 @@ import { DatabaseModule } from './database/database.module';
       isGlobal: true,
     }),
 
-    // ✅ Rate Limiting (Production-ready)
+    // ✅ Rate Limiting
     ThrottlerModule.forRoot([
       {
-        ttl: 60,   // 1 minute
-        limit: 10, // 10 requests per minute
+        ttl: 60,
+        limit: 10,
       },
     ]),
 
-    // ✅ JWT Config (IMPORTANT)
+    // ✅ JWT Config
     JwtModule.registerAsync({
       global: true,
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        secret: config.get<string>('JWT_SECRET') || 'supersecret', // fallback
+        secret: config.get<string>('JWT_SECRET') || 'supersecret',
         signOptions: {
           expiresIn: '1d',
         },
@@ -46,10 +50,13 @@ import { DatabaseModule } from './database/database.module';
     UserModule,
     DriveModule,
     DashboardModule,
+    AdminModule,
+    AttendanceModule,
+    MessageModule,
+    MailModule,
   ],
 
   providers: [
-    // ✅ Global Rate Limit Guard
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
