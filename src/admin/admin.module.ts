@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
-import { AdminController } from 'src/admin/admin.controller';
-import { AdminService } from 'src/admin/admin.service';
-import { UserModule } from 'src/user/user.module';
-import { DriveModule } from 'src/drive/drive.module';
+import { AdminController } from './admin.controller';
+import { AdminService } from './admin.service';
+import { UserModule } from '../user/user.module';
+import { DriveModule } from '../drive/drive.module';
 
 @Module({
   imports: [UserModule, DriveModule],

@@ -1,6 +1,6 @@
 import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
-import { UserService } from 'src/user/user.service';
-import { DriveService } from 'src/drive/drive.service';
+import { UserService } from '../user/user.service';
+import { DriveService } from '../drive/drive.service';
 
 interface DashboardStats {
   totalVolunteers: number;

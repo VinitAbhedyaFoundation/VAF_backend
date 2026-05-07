@@ -1,34 +1,62 @@
-import { Injectable, UnauthorizedException } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
-import { PassportStrategy } from "@nestjs/passport";
-import { Strategy, ExtractJwt } from "passport-jwt";
-import { DatabaseService } from "src/database/database.service";
+import {
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
+
+import { ConfigService } from '@nestjs/config';
+
+import { PassportStrategy } from '@nestjs/passport';
+
+import {
+  ExtractJwt,
+  Strategy,
+} from 'passport-jwt';
+
+import { DatabaseService } from '../../database/database.service';
 
 @Injectable()
-export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
+export class JwtStrategy extends PassportStrategy(
+  Strategy,
+  'jwt',
+) {
   constructor(
     private configService: ConfigService,
-    private databaseService: DatabaseService
+    private databaseService: DatabaseService,
   ) {
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest:
+        ExtractJwt.fromAuthHeaderAsBearerToken(),
+
       ignoreExpiration: false,
+
       secretOrKey:
-        configService.get<string>('JWT_SECRET_KEY') || 'supersecret',
+        configService.get<string>(
+          'JWT_SECRET_KEY',
+        ) || 'supersecret',
     });
   }
 
-  async validate(payload: { sub: number; email: string }) {
-    const user = await this.databaseService.user.findUnique({
-      where: { id: payload.sub },
-    });
+  async validate(payload: {
+    sub: number;
+    email: string;
+  }) {
+    const user =
+      await this.databaseService.user.findUnique(
+        {
+          where: {
+            id: payload.sub,
+          },
+        },
+      );
 
     if (!user) {
-      throw new UnauthorizedException('User not found');
+      throw new UnauthorizedException(
+        'User not found',
+      );
     }
 
     return {
-      userId: user.id,
+      sub: user.id,
       email: user.email,
       role: user.role,
     };

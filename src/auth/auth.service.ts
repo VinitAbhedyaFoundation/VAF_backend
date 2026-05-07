@@ -9,7 +9,7 @@ import { CreateUserDto } from '../user/dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
 import * as bcrypt from 'bcrypt';
-import { DatabaseService } from 'src/database/database.service';
+import { DatabaseService } from '../database/database.service';
 import { ConfigService } from '@nestjs/config';
 import { Gender, Prisma, Role } from '@prisma/client';
 import { LoginAdminDto } from './dto/login-admin.dto';

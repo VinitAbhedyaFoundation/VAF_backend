@@ -1,5 +1,5 @@
-import { DatabaseService } from 'src/database/database.service';
-import { MailService } from 'src/mail/mail.service';
+import { DatabaseService } from '../database/database.service';
+import { MailService } from '../mail/mail.service';
 import { Injectable, BadRequestException } from '@nestjs/common';
 
 

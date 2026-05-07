@@ -1,15 +1,39 @@
-import { IsDateString, IsInt } from "class-validator";
+import { ApiProperty } from '@nestjs/swagger';
+
+import { Type } from 'class-transformer';
+
+import {
+  IsDate,
+  IsNotEmpty,
+  IsNumber,
+  IsString,
+} from 'class-validator';
 
 export class CreateDriveDto {
-  @IsDateString()
-  date!: string;
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  title!: string;
 
-  @IsInt()
+  @ApiProperty()
+  @IsDate()
+  @Type(() => Date)
+  @IsNotEmpty()
+  date!: Date;
+
+  @ApiProperty()
+  @IsNumber()
+  @IsNotEmpty()
   locationId!: number;
 
-  @IsInt()
+  @ApiProperty()
+  @IsNumber()
+  @IsNotEmpty()
   totalHours!: number;
 
-  @IsDateString()
-  expiryDate!: string;
+  @ApiProperty()
+  @IsDate()
+  @Type(() => Date)
+  @IsNotEmpty()
+  expiryDate!: Date;
 }

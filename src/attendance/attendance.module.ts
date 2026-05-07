@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AttendanceController } from './attendance.controller';
 import { AttendanceService } from './attendance.service';
-import { DatabaseModule } from 'src/database/database.module'; // ✅ add this
+import { DatabaseModule } from '../database/database.module'; // ✅ add this
 
 @Module({
   imports: [DatabaseModule], // ✅ REQUIRED

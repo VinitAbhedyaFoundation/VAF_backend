@@ -2,13 +2,8 @@
   "compilerOptions": {
     "module": "commonjs",
     "target": "ES2021",
-    "outDir": "./dist",
-    "rootDir": "./src",
 
-    "baseUrl": "./",
-    "paths": {
-      "src/*": ["src/*"]
-    },
+    "outDir": "./dist",
 
     "moduleResolution": "node",
 
@@ -18,10 +13,17 @@
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
 
-    "skipLibCheck": true,
     "strict": true,
+    "skipLibCheck": true,
 
+    "sourceMap": true
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "test"]
+
+  "include": ["src/**/*.ts"],
+
+  "exclude": [
+    "node_modules",
+    "dist",
+    "test"
+  ]
 }

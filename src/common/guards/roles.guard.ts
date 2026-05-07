@@ -6,49 +6,87 @@ import {
 } from '@nestjs/common';
 
 import { Reflector } from '@nestjs/core';
+
 import { Role } from '@prisma/client';
 
+import { Request } from 'express';
+
+interface AuthUser {
+  sub: number;
+  email: string;
+  role: Role;
+}
+
 @Injectable()
-export class RolesGuard implements CanActivate {
-  constructor(private reflector: Reflector) {}
+export class RolesGuard
+  implements CanActivate
+{
+  constructor(
+    private reflector: Reflector,
+  ) {}
 
-  canActivate(context: ExecutionContext): boolean {
-    // 1. Get roles from decorator
-    const requiredRoles = this.reflector.getAllAndOverride<Role[]>('roles', [
-      context.getHandler(),
-      context.getClass(),
-    ]);
+  canActivate(
+    context: ExecutionContext,
+  ): boolean {
+    const requiredRoles =
+      this.reflector.getAllAndOverride<
+        Role[]
+      >('roles', [
+        context.getHandler(),
+        context.getClass(),
+      ]);
 
-    // 2. If no roles → allow (important)
-    if (!requiredRoles || requiredRoles.length === 0) {
+    if (
+      !requiredRoles ||
+      requiredRoles.length === 0
+    ) {
       return true;
     }
 
-    // 3. Get user from request (added by JWT strategy)
-    const request = context.switchToHttp().getRequest();
-   const user = request.user as { role: Role };
+    const request =
+      context
+        .switchToHttp()
+        .getRequest<Request>();
 
-    // 4. Role hierarchy (important concept)
-    const roleHierarchy: Record<Role, number> = {
+    const user =
+      request.user as AuthUser;
+
+    const roleHierarchy: Record<
+      Role,
+      number
+    > = {
       User: 1,
       Admin: 2,
       SuperAdmin: 3,
     };
 
-    // 5. Validate user + role
-    if (!user || !user.role || !(user.role in roleHierarchy)) {
-      throw new ForbiddenException('Invalid user or role');
+    if (
+      !user ||
+      !user.role ||
+      !(user.role in roleHierarchy)
+    ) {
+      throw new ForbiddenException(
+        'Invalid user or role',
+      );
     }
 
-    // 6. Compare role levels
-    const userLevel = roleHierarchy[user.role];
-    const requiredLevels = requiredRoles.map(role => roleHierarchy[role]);
+    const userLevel =
+      roleHierarchy[user.role];
 
-    const hasAccess = requiredLevels.some(level => userLevel >= level);
+    const requiredLevels =
+      requiredRoles.map(
+        (role) => roleHierarchy[role],
+      );
 
-    // 7. Deny if not allowed
+    const hasAccess =
+      requiredLevels.some(
+        (level) => userLevel >= level,
+      );
+
     if (!hasAccess) {
-      throw new ForbiddenException('Access denied');
+      throw new ForbiddenException(
+        'Access denied',
+      );
     }
 
     return true;
