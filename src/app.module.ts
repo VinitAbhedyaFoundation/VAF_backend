@@ -14,6 +14,7 @@ import { AdminModule } from './admin/admin.module';
 import { AttendanceModule } from './attendance/attendance.module';
 import { MessageModule } from './message/message.module';
 import { MailModule } from './mail/mail.module';
+import { PaymentModule } from './payment/payment.module'; 
 
 @Module({
   imports: [
@@ -54,6 +55,7 @@ import { MailModule } from './mail/mail.module';
     AttendanceModule,
     MessageModule,
     MailModule,
+    PaymentModule,
   ],
 
   providers: [
