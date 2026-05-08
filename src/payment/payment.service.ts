@@ -7,7 +7,7 @@ export class PaymentService {
 
   constructor() {
     console.log('STRIPE KEY:', process.env.STRIPE_SECRET_KEY);
-    console.log('CLIENT URL:', process.env.CLIENT_URL);
+    console.log('FRONTEND URL:', process.env.FRONTEND_URL);
 
     this.stripe = new Stripe(
       process.env.STRIPE_SECRET_KEY as string,
@@ -43,10 +43,10 @@ export class PaymentService {
           ],
 
           success_url:
-            `${process.env.CLIENT_URL}/payment-success`,
+            `${process.env.FRONTEND_URL}/payment-success`,
 
           cancel_url:
-            `${process.env.CLIENT_URL}/payment-cancel`,
+            `${process.env.FRONTEND_URL}/payment-cancel`,
         });
 
       return {
