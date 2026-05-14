@@ -7,10 +7,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-//////////////////////////////////////////////////////
-// 🔹 USER
-//////////////////////////////////////////////////////
-
 model User {
   id                   Int             @id @default(autoincrement())
   name                 String
@@ -32,22 +28,15 @@ model User {
   ploggerId            String          @unique
   createdAt            DateTime        @default(now())
   updatedAt            DateTime        @updatedAt
-
-  // 🔗 Relations
-  participations Participation[]
-  messagesSent   Message[]
-  notifications  Notification[]
+  messagesSent         Message[]
+  notifications        Notification[]
+  participations       Participation[]
 
   @@index([email])
 }
 
-//////////////////////////////////////////////////////
-// 🔹 DRIVE
-//////////////////////////////////////////////////////
-
 model Drive {
   id             Int             @id @default(autoincrement())
-  title          String?
   date           DateTime
   totalHours     Int
   volunteerCount Int             @default(0)
@@ -56,17 +45,13 @@ model Drive {
   locationId     Int
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
-
+  title          String?
   driveLocation  DriveLocation   @relation(fields: [locationId], references: [id])
   participations Participation[]
 
   @@index([locationId])
   @@index([temporaryToken])
 }
-
-//////////////////////////////////////////////////////
-// 🔹 DRIVE LOCATION
-//////////////////////////////////////////////////////
 
 model DriveLocation {
   id        Int      @id @default(autoincrement())
@@ -76,10 +61,6 @@ model DriveLocation {
   drives    Drive[]
 }
 
-//////////////////////////////////////////////////////
-// 🔹 PARTICIPATION (CORE ANALYTICS)
-//////////////////////////////////////////////////////
-
 model Participation {
   id        Int      @id @default(autoincrement())
   userId    Int
@@ -87,37 +68,25 @@ model Participation {
   hours     Int      @default(0)
   waste     Int      @default(0)
   createdAt DateTime @default(now())
-
-  user  User  @relation(fields: [userId], references: [id])
-  drive Drive @relation(fields: [driveId], references: [id])
+  drive     Drive    @relation(fields: [driveId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
 
   @@unique([userId, driveId])
   @@index([userId])
   @@index([driveId])
 }
 
-//////////////////////////////////////////////////////
-// 🔹 MESSAGE (BROADCAST SYSTEM)
-//////////////////////////////////////////////////////
-
 model Message {
   id          Int      @id @default(autoincrement())
   subject     String
   content     String
-
   senderId    Int
-  sender      User     @relation(fields: [senderId], references: [id])
-
   isBroadcast Boolean  @default(true)
-
   createdAt   DateTime @default(now())
+  sender      User     @relation(fields: [senderId], references: [id])
 
   @@index([senderId])
 }
-
-//////////////////////////////////////////////////////
-// 🔹 NOTIFICATION (OPTIONAL FEATURE)
-//////////////////////////////////////////////////////
 
 model Notification {
   id        Int      @id @default(autoincrement())
@@ -126,13 +95,8 @@ model Notification {
   message   String
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
-
-  user User? @relation(fields: [userId], references: [id])
+  user      User?    @relation(fields: [userId], references: [id])
 }
-
-//////////////////////////////////////////////////////
-// 🔹 ENUMS
-//////////////////////////////////////////////////////
 
 enum Gender {
   Male
