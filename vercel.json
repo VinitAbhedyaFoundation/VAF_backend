@@ -1,11 +1,12 @@
 {
     "version": 2,
     "buildCommand": "npm run vercel-build",
-    "functions": {
-        "dist/main.js": {
-            "runtime": "nodejs20.x"
+    "builds": [
+        {
+            "src": "dist/main.js",
+            "use": "@vercel/node@3.2.24"
         }
-    },
+    ],
     "routes": [
         {
             "src": "/(.*)",
