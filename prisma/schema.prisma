@@ -27,16 +27,21 @@ model User {
   city                 String?
   state                String?
   collegeOrCompany     String?
-  role                 Role
+
+  // 🔐 Role + Status
+  role                 Role            @default(User)
+  status               UserStatus      @default(Pending)
+
   drivesCount          Int             @default(0)
   ploggerId            String          @unique
+
   createdAt            DateTime        @default(now())
   updatedAt            DateTime        @updatedAt
 
   // 🔗 Relations
-  participations Participation[]
-  messagesSent   Message[]
-  notifications  Notification[]
+  participations       Participation[]
+  messagesSent         Message[]
+  notifications        Notification[]
 
   @@index([email])
 }
@@ -54,6 +59,7 @@ model Drive {
   temporaryToken String          @unique
   expiryDate     DateTime
   locationId     Int
+
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 
@@ -71,8 +77,10 @@ model Drive {
 model DriveLocation {
   id        Int      @id @default(autoincrement())
   location  String   @unique
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
   drives    Drive[]
 }
 
@@ -84,8 +92,10 @@ model Participation {
   id        Int      @id @default(autoincrement())
   userId    Int
   driveId   Int
+
   hours     Int      @default(0)
   waste     Int      @default(0)
+
   createdAt DateTime @default(now())
 
   user  User  @relation(fields: [userId], references: [id])
@@ -102,6 +112,7 @@ model Participation {
 
 model Message {
   id          Int      @id @default(autoincrement())
+
   subject     String
   content     String
 
@@ -116,15 +127,18 @@ model Message {
 }
 
 //////////////////////////////////////////////////////
-// 🔹 NOTIFICATION (OPTIONAL FEATURE)
+// 🔹 NOTIFICATION
 //////////////////////////////////////////////////////
 
 model Notification {
   id        Int      @id @default(autoincrement())
+
   userId    Int?
   title     String
   message   String
+
   isRead    Boolean  @default(false)
+
   createdAt DateTime @default(now())
 
   user User? @relation(fields: [userId], references: [id])
@@ -161,4 +175,10 @@ enum Role {
   User
   Admin
   SuperAdmin
+}
+
+enum UserStatus {
+  Pending
+  Approved
+  Suspended
 }

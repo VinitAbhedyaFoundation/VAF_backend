@@ -8,6 +8,9 @@ import { AuthGuard } from '@nestjs/passport';
 import { UserId } from '../common/decorator/user-id.decorator';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Roles } from '../common/decorator/roles.decorator';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { Role } from '@prisma/client';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -60,7 +63,8 @@ export class AuthController {
 
   // auth/update-user/:id
   @ApiBearerAuth()
-  @UseGuards(AuthGuard('jwt-admin'))
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(Role.Admin)
   @Patch('update-user/:id')
   @ApiOperation({
     description: 'Update API of USER by Id (for admin)',
@@ -82,7 +86,8 @@ export class AuthController {
 
   // auth/adminregister
   @ApiBearerAuth()
-  @UseGuards(AuthGuard('jwt-superadmin'))
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(Role.SuperAdmin)
   @Post('adminregister')
   @ApiOperation({
     description: 'Register a new admin',
@@ -94,7 +99,8 @@ export class AuthController {
 
   // auth/users
   @ApiBearerAuth()
-  @UseGuards(AuthGuard('jwt-admin'))
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(Role.Admin)
   @Get('users')
   @ApiOperation({
     description: 'Get all users',

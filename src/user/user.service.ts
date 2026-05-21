@@ -6,12 +6,19 @@ import {
 } from '@nestjs/common';
 
 import { DatabaseService } from '../database/database.service';
+import { Role } from '@prisma/client';
 
 @Injectable()
 export class UserService {
+  suspendUser(arg0: number) {
+    throw new Error('Method not implemented.');
+  }
+  approveUser(arg0: number) {
+    throw new Error('Method not implemented.');
+  }
   constructor(
     private databaseService: DatabaseService,
-  ) {}
+  ) { }
 
   // =========================
   // 👤 USER DETAILS
@@ -348,9 +355,9 @@ export class UserService {
     } catch (error) {
       if (
         error instanceof
-          BadRequestException ||
+        BadRequestException ||
         error instanceof
-          NotFoundException
+        NotFoundException
       ) {
         throw error;
       }
@@ -370,41 +377,33 @@ export class UserService {
   // 📋 DRIVES ATTENDED
   // =========================
 
-  async drivesAttended(
-    userId: number,
-  ) {
+  async drivesAttended(userId: number) {
     try {
       const participations =
-        await this.databaseService.participation.findMany(
-          {
-            where: {
-              userId,
-            },
+        await this.databaseService.participation.findMany({
+          where: {
+            userId,
+          },
 
-            include: {
-              drive: {
-                include: {
-                  driveLocation: true,
-                },
+          include: {
+            drive: {
+              include: {
+                driveLocation: true,
               },
             },
           },
-        );
+        });
 
-      const drives =
-        participations.map(
-          (p: any) => ({
-            id: p.drive.id,
-            date: p.drive.date,
-            totalHours:
-              p.drive.totalHours,
+      const drives = participations.map(
+        (p: any) => ({
+          id: p.drive.id,
+          date: p.drive.date,
+          totalHours: p.drive.totalHours,
 
-            location:
-              p.drive
-                .driveLocation
-                ?.location || null,
-          }),
-        );
+          location:
+            p.drive.driveLocation?.location || null,
+        }),
+      );
 
       return {
         message: drives.length
@@ -416,6 +415,55 @@ export class UserService {
     } catch (error) {
       console.error(
         'drivesAttended error:',
+        error,
+      );
+
+      throw new InternalServerErrorException(
+        'Something went wrong',
+      );
+    }
+  }
+  // =========================
+  // 👑 PROMOTE USER
+  // =========================
+
+  async promoteUser(id: number) {
+    try {
+      const user =
+        await this.databaseService.user.findUnique({
+          where: { id },
+        });
+
+      if (!user) {
+        throw new NotFoundException(
+          'User not found',
+        );
+      }
+
+      const updatedUser =
+        await this.databaseService.user.update({
+          where: { id },
+
+          data: {
+            role: Role.Admin,
+          },
+        });
+
+      return {
+        message:
+          'User promoted to Admin successfully',
+
+        user: updatedUser,
+      };
+    } catch (error) {
+      if (
+        error instanceof NotFoundException
+      ) {
+        throw error;
+      }
+
+      console.error(
+        'promoteUser error:',
         error,
       );
 
