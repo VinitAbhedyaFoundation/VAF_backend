@@ -13,6 +13,7 @@ import {
 } from 'passport-jwt';
 
 import { DatabaseService } from '../../database/database.service';
+import { UserStatus, Role } from '@prisma/client';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(
@@ -39,15 +40,14 @@ export class JwtStrategy extends PassportStrategy(
   async validate(payload: {
     sub: number;
     email: string;
+    role: Role;
   }) {
     const user =
-      await this.databaseService.user.findUnique(
-        {
-          where: {
-            id: payload.sub,
-          },
+      await this.databaseService.user.findUnique({
+        where: {
+          id: payload.sub,
         },
-      );
+      });
 
     if (!user) {
       throw new UnauthorizedException(
@@ -55,10 +55,23 @@ export class JwtStrategy extends PassportStrategy(
       );
     }
 
+    if (user.status === UserStatus.Pending) {
+      throw new UnauthorizedException(
+        'Account not approved yet',
+      );
+    }
+
+    if (user.status === UserStatus.Suspended) {
+      throw new UnauthorizedException(
+        'Account suspended',
+      );
+    }
+
     return {
       sub: user.id,
       email: user.email,
       role: user.role,
+      status: user.status,
     };
   }
 }

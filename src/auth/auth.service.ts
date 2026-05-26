@@ -11,7 +11,7 @@ import { LoginUserDto } from './dto/login-user.dto';
 import * as bcrypt from 'bcrypt';
 import { DatabaseService } from '../database/database.service';
 import { ConfigService } from '@nestjs/config';
-import { Gender, Prisma, Role } from '@prisma/client';
+import { Gender, Prisma, Role, UserStatus } from '@prisma/client';
 import { LoginAdminDto } from './dto/login-admin.dto';
 import { JwtService } from '@nestjs/jwt';
 import { CreateAdminDto } from './dto/create-admin.dto';
@@ -53,6 +53,7 @@ export class AuthService {
         role: Role.User,
         ploggerId: userId,
         birthDate: new Date(birthDate), // ✅ ALWAYS defined
+        status: UserStatus.Pending, // ✅ Set default status
       };
 
       const user = await this.databaseService.user.create({ data });
@@ -92,7 +93,21 @@ export class AuthService {
 
       if (!user) {
         console.log("❌ USER NOT FOUND");
-        throw new UnauthorizedException('User does not exist');
+        throw new UnauthorizedException(
+          'User does not exist',
+        );
+      }
+
+      if (user.status === UserStatus.Pending) {
+        throw new UnauthorizedException(
+          'Account not approved yet',
+        );
+      }
+
+      if (user.status === UserStatus.Suspended) {
+        throw new UnauthorizedException(
+          'Account suspended',
+        );
       }
 
       const isPasswordValid = await bcrypt.compare(password, user.password);
@@ -107,8 +122,9 @@ export class AuthService {
       console.log("✅ LOGIN SUCCESS");
 
       const token = await this.generateUserToken({
-        email: user.email,
+        email: user?.email,
         id: user.id,
+        role: user.role,
       });
 
       return {
@@ -119,6 +135,8 @@ export class AuthService {
           id: user.id,
           name: user.name,
           email: user.email,
+          role: user.role,
+          status: user.status,
         },
       };
 
@@ -192,6 +210,10 @@ export class AuthService {
         throw new UnauthorizedException('Invalid credentials');
       }
 
+      if (admin.status === UserStatus.Suspended) {
+        throw new UnauthorizedException('Admin account suspended');
+      }
+
       const isPasswordValid = await bcrypt.compare(password, admin.password);
 
       if (!isPasswordValid) {
@@ -219,58 +241,75 @@ export class AuthService {
     }
   }
 
+  
   // 🔥 CREATE ADMIN
-  async createAdmin(createAdminData: CreateAdminDto) {
-    const { email, password, name } = createAdminData;
+async createAdmin(createAdminData: CreateAdminDto) {
 
-    try {
-      const existingAdmin = await this.databaseService.user.findUnique({
+  const {
+    email,
+    password,
+    name,
+  } = createAdminData;
+
+  try {
+
+    const existingAdmin =
+      await this.databaseService.user.findUnique({
         where: { email },
       });
 
-      if (existingAdmin) {
-        throw new ConflictException('Admin already exists');
-      }
-
-      const hashedPassword = await bcrypt.hash(password, 10);
-
-      await this.databaseService.user.create({
-        data: {
-          name,
-          email,
-          password: hashedPassword,
-          role: Role.Admin,
-          phone: '0000000000',
-          parentNumber: '0000000000',
-          bloodGroup: 'O_POSITIVE',
-          birthDate: new Date(),
-          gender: 'Male',
-          occupation: 'WorkingProfessional',
-          highestQualification: 'N/A',
-          address: 'N/A',
-          ploggerId: `ADMIN_${Date.now()}`,
-        },
-      });
-
-      return { message: 'Admin Created Successfully' };
-
-    } catch (error: unknown) {
-      console.error('CREATE ADMIN ERROR:', error);
-
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2002'
-      ) {
-        throw new ConflictException('Email already exists');
-      }
-
-      if (error instanceof Error) {
-        throw new InternalServerErrorException(error.message);
-      }
-
-      throw new InternalServerErrorException();
+    if (existingAdmin) {
+      throw new ConflictException(
+        'Admin already exists',
+      );
     }
+
+    const hashedPassword =
+      await bcrypt.hash(password, 10);
+
+    await this.databaseService.user.create({
+      data: {
+        name,
+        email,
+        password: hashedPassword,
+
+        role: Role.Admin,
+        status: UserStatus.Approved,
+
+        ploggerId: `ADMIN_${Date.now()}`,
+      },
+    });
+
+    return {
+      message:
+        'Admin Created Successfully',
+    };
+
+  } catch (error: unknown) {
+
+    console.error(
+      'CREATE ADMIN ERROR:',
+      error,
+    );
+
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2002'
+    ) {
+      throw new ConflictException(
+        'Email already exists',
+      );
+    }
+
+    if (error instanceof Error) {
+      throw new InternalServerErrorException(
+        error.message,
+      );
+    }
+
+    throw new InternalServerErrorException();
   }
+}
 
   // 🔥 GET USERS
   async getAllUsers() {
@@ -320,9 +359,13 @@ export class AuthService {
     return `${year}${genderCode}${autoGeneratedId}`;
   }
 
-  async generateUserToken(payload: { email: string; id: number }) {
+  async generateUserToken(payload: {
+    email: string;
+    id: number;
+    role: Role;
+  }) {
     return this.jwtService.signAsync(
-      { email: payload.email, sub: payload.id },
+      { email: payload.email, sub: payload.id, role: payload.role },
       {
         secret: this.configService.get<string>('JWT_SECRET_KEY'),
         expiresIn: '2h',

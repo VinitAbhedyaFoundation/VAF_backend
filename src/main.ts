@@ -10,14 +10,14 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   app.enableCors({
-  origin: [
-    'http://localhost:8080',
-    ...(process.env.FRONTEND_URL
-      ? [process.env.FRONTEND_URL]
-      : []),
-  ],
-  credentials: true,
-});
+    origin: [
+      'http://localhost:8080',
+      ...(process.env.FRONTEND_URL
+        ? [process.env.FRONTEND_URL]
+        : []),
+    ],
+    credentials: true,
+  });
 
   app.use(helmet());
   app.setGlobalPrefix('api');
@@ -30,17 +30,17 @@ async function bootstrap() {
     }),
   );
 
-  if (process.env.NODE_ENV !== 'production') {
-    const config = new DocumentBuilder()
-      .setTitle('Attendance-Marking REST API')
-      .setDescription('Volunteer management API')
-      .setVersion('1.0')
-      .addBearerAuth()
-      .build();
 
-    const document = SwaggerModule.createDocument(app, config);
-    SwaggerModule.setup('swagger', app, document);
-  }
+  const config = new DocumentBuilder()
+    .setTitle('Attendance-Marking REST API')
+    .setDescription('Volunteer management API')
+    .setVersion('1.0')
+    .addBearerAuth()
+    .build();
+
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('swagger', app, document);
+
 
   await app.listen(process.env.PORT || 3000);
 }

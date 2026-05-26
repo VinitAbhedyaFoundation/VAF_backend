@@ -12,25 +12,32 @@ model User {
   name                 String
   email                String          @unique
   password             String
-  phone                String
-  parentNumber         String
-  bloodGroup           BloodGroup
-  birthDate            DateTime
-  gender               Gender
-  occupation           Occupation
-  highestQualification String
-  address              String
+ phone                String?
+parentNumber         String?
+bloodGroup           BloodGroup?
+birthDate            DateTime?
+gender               Gender?
+occupation           Occupation?
+highestQualification String?
+address              String?
   city                 String?
   state                String?
   collegeOrCompany     String?
-  role                 Role
+
+  // 🔐 Role + Status
+  role                 Role            @default(User)
+  status               UserStatus      @default(Pending)
+
   drivesCount          Int             @default(0)
   ploggerId            String          @unique
+
   createdAt            DateTime        @default(now())
   updatedAt            DateTime        @updatedAt
+
+  // 🔗 Relations
+  participations       Participation[]
   messagesSent         Message[]
   notifications        Notification[]
-  participations       Participation[]
 
   @@index([email])
 }
@@ -43,6 +50,7 @@ model Drive {
   temporaryToken String          @unique
   expiryDate     DateTime
   locationId     Int
+
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   title          String?
@@ -56,8 +64,10 @@ model Drive {
 model DriveLocation {
   id        Int      @id @default(autoincrement())
   location  String   @unique
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
   drives    Drive[]
 }
 
@@ -65,8 +75,10 @@ model Participation {
   id        Int      @id @default(autoincrement())
   userId    Int
   driveId   Int
+
   hours     Int      @default(0)
   waste     Int      @default(0)
+
   createdAt DateTime @default(now())
   drive     Drive    @relation(fields: [driveId], references: [id])
   user      User     @relation(fields: [userId], references: [id])
@@ -78,6 +90,7 @@ model Participation {
 
 model Message {
   id          Int      @id @default(autoincrement())
+
   subject     String
   content     String
   senderId    Int
@@ -88,12 +101,19 @@ model Message {
   @@index([senderId])
 }
 
+//////////////////////////////////////////////////////
+// 🔹 NOTIFICATION
+//////////////////////////////////////////////////////
+
 model Notification {
   id        Int      @id @default(autoincrement())
+
   userId    Int?
   title     String
   message   String
+
   isRead    Boolean  @default(false)
+
   createdAt DateTime @default(now())
   user      User?    @relation(fields: [userId], references: [id])
 }
@@ -125,4 +145,10 @@ enum Role {
   User
   Admin
   SuperAdmin
+}
+
+enum UserStatus {
+  Pending
+  Approved
+  Suspended
 }

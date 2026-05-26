@@ -6,12 +6,138 @@ import {
 } from '@nestjs/common';
 
 import { DatabaseService } from '../database/database.service';
+import { Role, UserStatus } from '@prisma/client';
 
 @Injectable()
 export class UserService {
+  async suspendUser(id: number) {
+    try {
+      const user =
+        await this.databaseService.user.findUnique({
+          where: { id },
+        });
+
+      if (!user) {
+
+        throw new NotFoundException(
+          'User not found',
+        );
+      }
+
+      if (user.role === Role.SuperAdmin) {
+
+        throw new BadRequestException(
+          'Cannot modify SuperAdmin',
+        );
+      }
+
+      const updatedUser =
+        await this.databaseService.user.update({
+          where: { id },
+
+          data: {
+            status: UserStatus.Suspended,
+          },
+
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            status: true,
+            ploggerId: true,
+          },
+        });
+
+      return {
+        message:
+          'User suspended successfully',
+
+        user: updatedUser,
+      };
+    } catch (error) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
+        throw error;
+      }
+
+      console.error(
+        'suspendUser error:',
+        error,
+      );
+
+      throw new InternalServerErrorException(
+        'Something went wrong',
+      );
+    }
+  }
+  async approveUser(id: number) {
+    try {
+      const user =
+        await this.databaseService.user.findUnique({
+          where: { id },
+        });
+
+      if (!user) {
+        throw new NotFoundException(
+          'User not found',
+        );
+      }
+
+      if (user.role === Role.SuperAdmin) {
+
+        throw new BadRequestException(
+          'Cannot modify SuperAdmin',
+        );
+      }
+
+      const updatedUser =
+        await this.databaseService.user.update({
+          where: { id },
+
+          data: {
+            status: UserStatus.Approved,
+          },
+
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            status: true,
+            ploggerId: true,
+          },
+        });
+
+      return {
+        message:
+          'User approved successfully',
+
+        user: updatedUser,
+      };
+    } catch (error) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
+        throw error;
+      }
+
+      console.error(
+        'approveUser error:',
+        error,
+      );
+
+      throw new InternalServerErrorException(
+        'Something went wrong',
+      );
+    }
+  }
   constructor(
     private databaseService: DatabaseService,
-  ) {}
+  ) { }
 
   // =========================
   // 👤 USER DETAILS
@@ -32,6 +158,7 @@ export class UserService {
               email: true,
               role: true,
               ploggerId: true,
+              status: true,
             },
           },
         );
@@ -65,6 +192,61 @@ export class UserService {
   }
 
   // =========================
+  // 👤 DELETE USER 
+  // =========================
+  async deleteUser(id: number) {
+
+    try {
+
+      const user =
+        await this.databaseService.user.findUnique({
+          where: { id },
+        });
+
+      if (!user) {
+
+        throw new NotFoundException(
+          'User not found',
+        );
+      }
+
+      if (user.role === Role.SuperAdmin) {
+
+        throw new BadRequestException(
+          'SuperAdmin cannot be deleted',
+        );
+      }
+
+      await this.databaseService.user.delete({
+        where: { id },
+      });
+
+      return {
+        message:
+          'User deleted successfully',
+      };
+
+    } catch (error) {
+
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
+        throw error;
+      }
+
+      console.error(
+        'deleteUser error:',
+        error,
+      );
+
+      throw new InternalServerErrorException(
+        'Something went wrong',
+      );
+    }
+  }
+
+  // =========================
   // 👤 GET USER BY PLOGGER ID
   // =========================
 
@@ -85,6 +267,7 @@ export class UserService {
               email: true,
               role: true,
               ploggerId: true,
+              status: true,
             },
           },
         );
@@ -132,6 +315,7 @@ export class UserService {
               email: true,
               ploggerId: true,
               role: true,
+              status: true,
             },
 
             orderBy: {
@@ -204,6 +388,7 @@ export class UserService {
               email: true,
               ploggerId: true,
               role: true,
+              status: true,
             },
           },
         );
@@ -348,9 +533,9 @@ export class UserService {
     } catch (error) {
       if (
         error instanceof
-          BadRequestException ||
+        BadRequestException ||
         error instanceof
-          NotFoundException
+        NotFoundException
       ) {
         throw error;
       }
@@ -370,41 +555,33 @@ export class UserService {
   // 📋 DRIVES ATTENDED
   // =========================
 
-  async drivesAttended(
-    userId: number,
-  ) {
+  async drivesAttended(userId: number) {
     try {
       const participations =
-        await this.databaseService.participation.findMany(
-          {
-            where: {
-              userId,
-            },
+        await this.databaseService.participation.findMany({
+          where: {
+            userId,
+          },
 
-            include: {
-              drive: {
-                include: {
-                  driveLocation: true,
-                },
+          include: {
+            drive: {
+              include: {
+                driveLocation: true,
               },
             },
           },
-        );
+        });
 
-      const drives =
-        participations.map(
-          (p: any) => ({
-            id: p.drive.id,
-            date: p.drive.date,
-            totalHours:
-              p.drive.totalHours,
+      const drives = participations.map(
+        (p: any) => ({
+          id: p.drive.id,
+          date: p.drive.date,
+          totalHours: p.drive.totalHours,
 
-            location:
-              p.drive
-                .driveLocation
-                ?.location || null,
-          }),
-        );
+          location:
+            p.drive.driveLocation?.location || null,
+        }),
+      );
 
       return {
         message: drives.length
@@ -416,6 +593,80 @@ export class UserService {
     } catch (error) {
       console.error(
         'drivesAttended error:',
+        error,
+      );
+
+      throw new InternalServerErrorException(
+        'Something went wrong',
+      );
+    }
+  }
+  // =========================
+  // 👑 PROMOTE USER
+  // =========================
+
+  async promoteUser(id: number) {
+    try {
+      const user =
+        await this.databaseService.user.findUnique({
+          where: { id },
+        });
+
+      if (!user) {
+        throw new NotFoundException(
+          'User not found',
+        );
+      }
+      if (user.role === Role.SuperAdmin) {
+
+        throw new BadRequestException(
+          'Cannot modify SuperAdmin',
+        );
+      }
+
+      if (user.role === Role.Admin) {
+
+        throw new BadRequestException(
+          'User is already Admin',
+        );
+      }
+
+      const updatedUser =
+        await this.databaseService.user.update({
+          where: { id },
+
+          data: {
+            role: Role.Admin,
+            status: UserStatus.Approved,
+
+          },
+
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            status: true,
+            ploggerId: true,
+          },
+        });
+
+      return {
+        message:
+          'User promoted to Admin successfully',
+
+        user: updatedUser,
+      };
+    } catch (error) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
+        throw error;
+      }
+
+      console.error(
+        'promoteUser error:',
         error,
       );
 
