@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Body,
+  Delete,
   Param,
   Patch,
   UseGuards,
@@ -24,11 +25,12 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth-guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 
 import { Roles } from '../auth/decorators/roles.decorator';
+import { Role } from '@prisma/client';
 
 @ApiTags('User')
 @Controller('user')
 export class UserController {
-  constructor(private readonly userService: UserService) {}
+  constructor(private readonly userService: UserService) { }
 
   // =========================
   // USER DETAILS
@@ -36,7 +38,7 @@ export class UserController {
 
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('User', 'Admin', 'SuperAdmin')
+  @Roles(Role.User, Role.Admin, Role.SuperAdmin)
   @Get('details')
   @ApiOperation({ summary: 'Get current logged-in user details' })
   userDetail(@UserId() userId: number) {
@@ -49,7 +51,7 @@ export class UserController {
 
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('Admin', 'SuperAdmin')
+  @Roles(Role.Admin, Role.SuperAdmin)
   @Get('details/:ploggerId')
   @ApiOperation({ summary: 'Get user by ploggerId' })
   getUserByPloggerId(
@@ -64,7 +66,7 @@ export class UserController {
 
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('Admin', 'SuperAdmin')
+  @Roles(Role.Admin, Role.SuperAdmin)
   @Get('all')
   @ApiOperation({ summary: 'Get all users' })
   getAllUsers() {
@@ -77,7 +79,7 @@ export class UserController {
 
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('Admin', 'SuperAdmin')
+  @Roles(Role.Admin, Role.SuperAdmin)
   @Get('search')
   @ApiOperation({ summary: 'Search users' })
   searchUsers(@Query('q') query: string) {
@@ -90,7 +92,7 @@ export class UserController {
 
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SuperAdmin')
+  @Roles(Role.SuperAdmin)
   @Patch('approve/:id')
   @ApiOperation({ summary: 'Approve user' })
   approveUser(@Param('id') id: string) {
@@ -103,12 +105,29 @@ export class UserController {
 
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SuperAdmin')
+  @Roles(Role.SuperAdmin)
   @Patch('suspend/:id')
   @ApiOperation({ summary: 'Suspend user' })
   suspendUser(@Param('id') id: string) {
     return this.userService.suspendUser(Number(id));
   }
+  // =========================
+  // DELETE USER
+  // =========================
+  @ApiBearerAuth()
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(Role.SuperAdmin)
+@Delete(':id')
+@ApiOperation({
+  summary: 'Delete user/admin',
+})
+deleteUser(
+  @Param('id') id: string,
+) {
+  return this.userService.deleteUser(
+    Number(id),
+  );
+}
 
   // =========================
   // PROMOTE USER
@@ -116,7 +135,7 @@ export class UserController {
 
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SuperAdmin')
+  @Roles(Role.SuperAdmin)
   @Patch('promote/:id')
   @ApiOperation({ summary: 'Promote user to admin' })
   promoteUser(@Param('id') id: string) {
@@ -129,7 +148,7 @@ export class UserController {
 
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('User')
+  @Roles(Role.User)
   @Post('attendance')
   @ApiOperation({ summary: 'Mark attendance' })
   markAttendance(
@@ -148,7 +167,7 @@ export class UserController {
 
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('User')
+  @Roles(Role.User)
   @Get('drivesattended')
   @ApiOperation({ summary: 'Get drives attended' })
   drivesAttended(@UserId() userId: number) {

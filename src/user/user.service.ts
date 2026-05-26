@@ -6,15 +6,134 @@ import {
 } from '@nestjs/common';
 
 import { DatabaseService } from '../database/database.service';
-import { Role } from '@prisma/client';
+import { Role, UserStatus } from '@prisma/client';
 
 @Injectable()
 export class UserService {
-  suspendUser(arg0: number) {
-    throw new Error('Method not implemented.');
+  async suspendUser(id: number) {
+    try {
+      const user =
+        await this.databaseService.user.findUnique({
+          where: { id },
+        });
+
+      if (!user) {
+
+        throw new NotFoundException(
+          'User not found',
+        );
+      }
+
+      if (user.role === Role.SuperAdmin) {
+
+        throw new BadRequestException(
+          'Cannot modify SuperAdmin',
+        );
+      }
+
+      const updatedUser =
+        await this.databaseService.user.update({
+          where: { id },
+
+          data: {
+            status: UserStatus.Suspended,
+          },
+
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            status: true,
+            ploggerId: true,
+          },
+        });
+
+      return {
+        message:
+          'User suspended successfully',
+
+        user: updatedUser,
+      };
+    } catch (error) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
+        throw error;
+      }
+
+      console.error(
+        'suspendUser error:',
+        error,
+      );
+
+      throw new InternalServerErrorException(
+        'Something went wrong',
+      );
+    }
   }
-  approveUser(arg0: number) {
-    throw new Error('Method not implemented.');
+  async approveUser(id: number) {
+    try {
+      const user =
+        await this.databaseService.user.findUnique({
+          where: { id },
+        });
+
+      if (!user) {
+        throw new NotFoundException(
+          'User not found',
+        );
+      }
+
+      if (user.role === Role.SuperAdmin) {
+
+        throw new BadRequestException(
+          'Cannot modify SuperAdmin',
+        );
+      }
+
+      const updatedUser =
+        await this.databaseService.user.update({
+          where: { id },
+
+          data: {
+            status: UserStatus.Approved,
+          },
+
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            status: true,
+            ploggerId: true,
+          },
+        });
+
+      return {
+        message:
+          'User approved successfully',
+
+        user: updatedUser,
+      };
+    } catch (error) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
+        throw error;
+      }
+
+      console.error(
+        'approveUser error:',
+        error,
+      );
+
+      throw new InternalServerErrorException(
+        'Something went wrong',
+      );
+    }
   }
   constructor(
     private databaseService: DatabaseService,
@@ -39,6 +158,7 @@ export class UserService {
               email: true,
               role: true,
               ploggerId: true,
+              status: true,
             },
           },
         );
@@ -72,6 +192,61 @@ export class UserService {
   }
 
   // =========================
+  // 👤 DELETE USER 
+  // =========================
+  async deleteUser(id: number) {
+
+    try {
+
+      const user =
+        await this.databaseService.user.findUnique({
+          where: { id },
+        });
+
+      if (!user) {
+
+        throw new NotFoundException(
+          'User not found',
+        );
+      }
+
+      if (user.role === Role.SuperAdmin) {
+
+        throw new BadRequestException(
+          'SuperAdmin cannot be deleted',
+        );
+      }
+
+      await this.databaseService.user.delete({
+        where: { id },
+      });
+
+      return {
+        message:
+          'User deleted successfully',
+      };
+
+    } catch (error) {
+
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
+        throw error;
+      }
+
+      console.error(
+        'deleteUser error:',
+        error,
+      );
+
+      throw new InternalServerErrorException(
+        'Something went wrong',
+      );
+    }
+  }
+
+  // =========================
   // 👤 GET USER BY PLOGGER ID
   // =========================
 
@@ -92,6 +267,7 @@ export class UserService {
               email: true,
               role: true,
               ploggerId: true,
+              status: true,
             },
           },
         );
@@ -139,6 +315,7 @@ export class UserService {
               email: true,
               ploggerId: true,
               role: true,
+              status: true,
             },
 
             orderBy: {
@@ -211,6 +388,7 @@ export class UserService {
               email: true,
               ploggerId: true,
               role: true,
+              status: true,
             },
           },
         );
@@ -439,6 +617,19 @@ export class UserService {
           'User not found',
         );
       }
+      if (user.role === Role.SuperAdmin) {
+
+        throw new BadRequestException(
+          'Cannot modify SuperAdmin',
+        );
+      }
+
+      if (user.role === Role.Admin) {
+
+        throw new BadRequestException(
+          'User is already Admin',
+        );
+      }
 
       const updatedUser =
         await this.databaseService.user.update({
@@ -446,6 +637,17 @@ export class UserService {
 
           data: {
             role: Role.Admin,
+            status: UserStatus.Approved,
+
+          },
+
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            status: true,
+            ploggerId: true,
           },
         });
 
@@ -457,7 +659,8 @@ export class UserService {
       };
     } catch (error) {
       if (
-        error instanceof NotFoundException
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
       ) {
         throw error;
       }

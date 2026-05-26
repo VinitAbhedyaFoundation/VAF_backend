@@ -16,14 +16,14 @@ model User {
   name                 String
   email                String          @unique
   password             String
-  phone                String
-  parentNumber         String
-  bloodGroup           BloodGroup
-  birthDate            DateTime
-  gender               Gender
-  occupation           Occupation
-  highestQualification String
-  address              String
+ phone                String?
+parentNumber         String?
+bloodGroup           BloodGroup?
+birthDate            DateTime?
+gender               Gender?
+occupation           Occupation?
+highestQualification String?
+address              String?
   city                 String?
   state                String?
   collegeOrCompany     String?
