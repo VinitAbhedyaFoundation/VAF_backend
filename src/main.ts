@@ -10,14 +10,16 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   app.enableCors({
-    origin: [
-      'http://localhost:8080',
-      ...(process.env.FRONTEND_URL
-        ? [process.env.FRONTEND_URL]
-        : []),
-    ],
-    credentials: true,
-  });
+  origin: [
+    'http://localhost:8080',
+    'http://localhost:5173',
+    'https://vaf-frontend.vercel.app',
+    'https://vinitabbedyafoundation.com',
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+});
 
   app.use(helmet());
   app.setGlobalPrefix('api');
