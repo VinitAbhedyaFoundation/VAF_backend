@@ -72,20 +72,27 @@ model DriveLocation {
 }
 
 model Participation {
-  id        Int      @id @default(autoincrement())
+  id        Int               @id @default(autoincrement())
+
   userId    Int
   driveId   Int
 
-  hours     Int      @default(0)
-  waste     Int      @default(0)
+  status    AttendanceStatus  @default(Pending)
 
-  createdAt DateTime @default(now())
-  drive     Drive    @relation(fields: [driveId], references: [id])
-  user      User     @relation(fields: [userId], references: [id])
+  hours     Int               @default(0)
+  waste     Int               @default(0)
+
+  createdAt DateTime          @default(now())
+
+  drive     Drive             @relation(fields: [driveId], references: [id])
+
+  user      User              @relation(fields: [userId], references: [id])
 
   @@unique([userId, driveId])
+
   @@index([userId])
   @@index([driveId])
+  @@index([status])
 }
 
 model Message {
@@ -151,4 +158,10 @@ enum UserStatus {
   Pending
   Approved
   Suspended
+}
+
+enum AttendanceStatus {
+  Pending
+  Approved
+  Rejected
 }

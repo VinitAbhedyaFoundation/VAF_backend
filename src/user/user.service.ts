@@ -675,4 +675,164 @@ export class UserService {
       );
     }
   }
+  // =========================
+  // 📋 GET PENDING ATTENDANCE
+  // =========================
+
+  async getPendingAttendance() {
+    try {
+      const pendingAttendance =
+        await this.databaseService.participation.findMany({
+          where: {
+            status: 'Pending',
+          },
+
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+
+            drive: {
+              select: {
+                id: true,
+                date: true,
+                totalHours: true,
+              },
+            },
+          },
+
+          orderBy: {
+            createdAt: 'desc',
+          },
+        });
+
+      return {
+        message: 'Pending attendance fetched successfully',
+        attendance: pendingAttendance,
+      };
+
+    } catch (error) {
+
+      console.error(
+        'getPendingAttendance error:',
+        error,
+      );
+
+      throw new InternalServerErrorException(
+        'Something went wrong',
+      );
+    }
+  }
+
+  // =========================
+  // ✅ APPROVE ATTENDANCE
+  // =========================
+
+  async approveAttendance(id: number) {
+    try {
+
+      const attendance =
+        await this.databaseService.participation.findUnique({
+          where: { id },
+        });
+
+      if (!attendance) {
+
+        throw new NotFoundException(
+          'Attendance record not found',
+        );
+      }
+
+      const updatedAttendance =
+        await this.databaseService.participation.update({
+          where: { id },
+
+          data: {
+            status: 'Approved',
+          },
+        });
+
+      return {
+        message:
+          'Attendance approved successfully',
+
+        attendance: updatedAttendance,
+      };
+
+    } catch (error) {
+
+      if (
+        error instanceof NotFoundException
+      ) {
+        throw error;
+      }
+
+      console.error(
+        'approveAttendance error:',
+        error,
+      );
+
+      throw new InternalServerErrorException(
+        'Something went wrong',
+      );
+    }
+  }
+
+  // =========================
+  // ❌ REJECT ATTENDANCE
+  // =========================
+
+  async rejectAttendance(id: number) {
+    try {
+
+      const attendance =
+        await this.databaseService.participation.findUnique({
+          where: { id },
+        });
+
+      if (!attendance) {
+
+        throw new NotFoundException(
+          'Attendance record not found',
+        );
+      }
+
+      const updatedAttendance =
+        await this.databaseService.participation.update({
+          where: { id },
+
+          data: {
+            status: 'Rejected',
+          },
+        });
+
+      return {
+        message:
+          'Attendance rejected successfully',
+
+        attendance: updatedAttendance,
+      };
+
+    } catch (error) {
+
+      if (
+        error instanceof NotFoundException
+      ) {
+        throw error;
+      }
+
+      console.error(
+        'rejectAttendance error:',
+        error,
+      );
+
+      throw new InternalServerErrorException(
+        'Something went wrong',
+      );
+    }
+  }
 }
