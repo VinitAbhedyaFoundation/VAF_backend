@@ -490,47 +490,39 @@ export class DriveService {
   // =========================
 
   async getUpcomingDrives() {
-    try {
-      const drives =
-        await this.databaseService.drive.findMany(
-          {
-            where: {
-              date: {
-                gte: new Date(),
-              },
-            },
+  try {
+    const drives =
+      await this.databaseService.drive.findMany({
+        orderBy: {
+          id: 'desc',
+        },
 
-            orderBy: {
-              date: 'asc',
-            },
-
-            include: {
-              driveLocation: {
-                select: {
-                  location: true,
-                },
-              },
+        include: {
+          driveLocation: {
+            select: {
+              location: true,
             },
           },
-        );
+        },
+      });
 
-      return drives.map((drive) => ({
-        id: drive.id,
-        title: drive.title,
-        date: drive.date,
-        totalHours: drive.totalHours,
-        location:
-          drive.driveLocation?.location ||
-          null,
-      }));
-    } catch (error) {
-      this.logger.error(
-        'Fetch upcoming drives failed',
-      );
+    return drives.map((drive) => ({
+      id: drive.id,
+      title: drive.title,
+      date: drive.date,
+      totalHours: drive.totalHours,
+      location:
+        drive.driveLocation?.location ||
+        null,
+    }));
+  } catch (error) {
+    this.logger.error(
+      'Fetch upcoming drives failed',
+    );
 
-      throw new InternalServerErrorException(
-        'Failed to fetch upcoming drives',
-      );
-    }
+    throw new InternalServerErrorException(
+      'Failed to fetch upcoming drives',
+    );
   }
+}
 }
