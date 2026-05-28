@@ -92,7 +92,7 @@ export class UserController {
 
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.SuperAdmin)
+  @Roles(Role.SuperAdmin, Role.Admin)
   @Patch('approve/:id')
   @ApiOperation({ summary: 'Approve user' })
   approveUser(@Param('id') id: string) {
@@ -105,7 +105,7 @@ export class UserController {
 
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.SuperAdmin)
+  @Roles(Role.SuperAdmin, Role.Admin)
   @Patch('suspend/:id')
   @ApiOperation({ summary: 'Suspend user' })
   suspendUser(@Param('id') id: string) {
@@ -143,23 +143,70 @@ deleteUser(
   }
 
   // =========================
-  // MARK ATTENDANCE
-  // =========================
+// MARK ATTENDANCE
+// =========================
 
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.User)
-  @Post('attendance')
-  @ApiOperation({ summary: 'Mark attendance' })
-  markAttendance(
-    @Body() markAttendanceData: MarkAttendanceDto,
-    @UserId() userId: number,
-  ) {
-    return this.userService.markAttendance(
-      markAttendanceData.temporaryToken,
-      userId,
-    );
-  }
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(Role.User)
+@Post('attendance')
+@ApiOperation({ summary: 'Submit attendance request' })
+markAttendance(
+  @Body() markAttendanceData: MarkAttendanceDto,
+  @UserId() userId: number,
+) {
+  return this.userService.markAttendance(
+    markAttendanceData.temporaryToken,
+    userId,
+  );
+}
+
+// =========================
+// GET PENDING ATTENDANCE
+// =========================
+
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(Role.Admin, Role.SuperAdmin)
+@Get('attendance/pending')
+@ApiOperation({ summary: 'Get pending attendance records' })
+getPendingAttendance() {
+  return this.userService.getPendingAttendance();
+}
+
+// =========================
+// APPROVE ATTENDANCE
+// =========================
+
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(Role.Admin, Role.SuperAdmin)
+@Patch('attendance/approve/:id')
+@ApiOperation({ summary: 'Approve attendance' })
+approveAttendance(
+  @Param('id') id: string,
+) {
+  return this.userService.approveAttendance(
+    Number(id),
+  );
+}
+
+// =========================
+// REJECT ATTENDANCE
+// =========================
+
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(Role.Admin, Role.SuperAdmin)
+@Patch('attendance/reject/:id')
+@ApiOperation({ summary: 'Reject attendance' })
+rejectAttendance(
+  @Param('id') id: string,
+) {
+  return this.userService.rejectAttendance(
+    Number(id),
+  );
+}
 
   // =========================
   // DRIVES ATTENDED
