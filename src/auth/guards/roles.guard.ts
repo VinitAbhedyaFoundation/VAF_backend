@@ -8,7 +8,7 @@ import { Reflector } from '@nestjs/core';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
-  constructor(private reflector: Reflector) {}
+  constructor(private reflector: Reflector) { }
 
   canActivate(context: ExecutionContext): boolean {
     // 🟢 Get roles required from decorator
@@ -24,6 +24,12 @@ export class RolesGuard implements CanActivate {
 
     const request = context.switchToHttp().getRequest();
     const user = request.user;
+    // 🔥 ADD THESE LOGS HERE
+    console.log('AUTH HEADER:', request.headers.authorization);
+
+    console.log('USER:', user);
+
+    console.log('REQUIRED ROLES:', requiredRoles);
 
     // 🔴 No user → something wrong with auth
     if (!user) {

@@ -446,7 +446,6 @@ export class UserService {
 
             select: {
               id: true,
-              expiryDate: true,
             },
           },
         );
@@ -454,16 +453,6 @@ export class UserService {
       if (!drive) {
         throw new NotFoundException(
           'Drive not found or token is invalid.',
-        );
-      }
-
-      if (
-        new Date(
-          drive.expiryDate,
-        ).getTime() < Date.now()
-      ) {
-        throw new BadRequestException(
-          'Token has expired.',
         );
       }
 

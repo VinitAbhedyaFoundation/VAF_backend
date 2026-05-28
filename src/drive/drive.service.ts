@@ -19,7 +19,7 @@ export class DriveService {
 
   constructor(
     private databaseService: DatabaseService,
-  ) {}
+  ) { }
 
   // =========================
   // 🔐 SECURE TOKEN
@@ -38,28 +38,12 @@ export class DriveService {
   ) {
     const {
       title,
-      locationId,
+      location,
       date,
       totalHours,
-      expiryDate,
     } = createDriveDto;
 
     try {
-      const isLocationValid =
-        await this.databaseService.driveLocation.findUnique(
-          {
-            where: {
-              id: locationId,
-            },
-          },
-        );
-
-      if (!isLocationValid) {
-        throw new BadRequestException(
-          'Invalid request',
-        );
-      }
-
       const parsedDate = new Date(date);
 
       if (
@@ -80,18 +64,27 @@ export class DriveService {
               title,
               date: parsedDate,
               totalHours,
-              expiryDate,
               temporaryToken,
-              locationId,
+
+              driveLocation: {
+                connectOrCreate: {
+                  where: {
+                    location,
+                  },
+
+                  create: {
+                    location,
+                  },
+                },
+              },
             },
 
-            select: {
-              id: true,
-              title: true,
-              date: true,
-              totalHours: true,
-              expiryDate: true,
-              locationId: true,
+            include: {
+              driveLocation: {
+                select: {
+                  location: true,
+                },
+              },
             },
           },
         );
@@ -203,7 +196,6 @@ export class DriveService {
         title: drive.title,
         date: drive.date,
         totalHours: drive.totalHours,
-        expiryDate: drive.expiryDate,
         location:
           drive.driveLocation?.location ||
           null,
@@ -298,7 +290,6 @@ export class DriveService {
         title: drive.title,
         date: drive.date,
         totalHours: drive.totalHours,
-        expiryDate: drive.expiryDate,
         location:
           drive.driveLocation?.location ||
           null,
@@ -336,29 +327,12 @@ export class DriveService {
 
     const {
       title,
-      locationId,
+      location,
       date,
       totalHours,
-      expiryDate,
     } = updateDriveData;
 
     try {
-      if (locationId) {
-        const isLocationValid =
-          await this.databaseService.driveLocation.findUnique(
-            {
-              where: {
-                id: locationId,
-              },
-            },
-          );
-
-        if (!isLocationValid) {
-          throw new BadRequestException(
-            'Invalid request',
-          );
-        }
-      }
 
       let parsedDate:
         | Date
@@ -386,18 +360,29 @@ export class DriveService {
             data: {
               title,
               date: parsedDate,
-              locationId,
               totalHours,
-              expiryDate,
+
+              ...(location && {
+                driveLocation: {
+                  connectOrCreate: {
+                    where: {
+                      location,
+                    },
+
+                    create: {
+                      location,
+                    },
+                  },
+                },
+              }),
             },
 
-            select: {
-              id: true,
-              title: true,
-              date: true,
-              totalHours: true,
-              expiryDate: true,
-              locationId: true,
+            include: {
+              driveLocation: {
+                select: {
+                  location: true,
+                },
+              },
             },
           },
         );
@@ -479,7 +464,6 @@ export class DriveService {
         title: drive.title,
         date: drive.date,
         totalHours: drive.totalHours,
-        expiryDate: drive.expiryDate,
         location:
           drive.driveLocation?.location ||
           null,
@@ -535,7 +519,6 @@ export class DriveService {
         title: drive.title,
         date: drive.date,
         totalHours: drive.totalHours,
-        expiryDate: drive.expiryDate,
         location:
           drive.driveLocation?.location ||
           null,
