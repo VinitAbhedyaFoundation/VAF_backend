@@ -48,7 +48,7 @@ model Drive {
   totalHours     Int
   volunteerCount Int             @default(0)
   temporaryToken String          @unique
-  expiryDate     DateTime
+  expiryDate     DateTime?
   locationId     Int
 
   createdAt      DateTime        @default(now())

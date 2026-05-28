@@ -6,6 +6,7 @@ import {
   IsDate,
   IsNotEmpty,
   IsNumber,
+  IsOptional,
   IsString,
 } from 'class-validator';
 
@@ -16,6 +17,11 @@ export class CreateDriveDto {
   title!: string;
 
   @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  location!: string;
+
+  @ApiProperty()
   @IsDate()
   @Type(() => Date)
   @IsNotEmpty()
@@ -24,16 +30,6 @@ export class CreateDriveDto {
   @ApiProperty()
   @IsNumber()
   @IsNotEmpty()
-  locationId!: number;
-
-  @ApiProperty()
-  @IsNumber()
-  @IsNotEmpty()
   totalHours!: number;
 
-  @ApiProperty()
-  @IsDate()
-  @Type(() => Date)
-  @IsNotEmpty()
-  expiryDate!: Date;
 }
