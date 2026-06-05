@@ -192,14 +192,14 @@ export class DriveService {
         );
 
       return drives.map((drive) => ({
-        id: drive.id,
-        title: drive.title,
-        date: drive.date,
-        totalHours: drive.totalHours,
-        location:
-          drive.driveLocation?.location ||
-          null,
-      }));
+  id: drive.id,
+  title: drive.title,
+  date: drive.date,
+  totalHours: drive.totalHours,
+  volunteerCount: drive.volunteerCount,
+  wasteKg: 0, // temporary until waste API is added
+  location: drive.driveLocation?.location || null,
+}));
     } catch (error) {
       this.logger.error(
         'Fetch drives failed',
@@ -269,13 +269,21 @@ export class DriveService {
               id,
             },
 
-            include: {
-              driveLocation: {
-                select: {
-                  location: true,
-                },
-              },
-            },
+           include: {
+  driveLocation: {
+    select: {
+      location: true,
+    },
+  },
+
+  participations: {
+    select: {
+      hours: true,
+      waste: true,
+      status: true,
+    },
+  },
+},
           },
         );
 
@@ -443,13 +451,20 @@ export class DriveService {
               date: parsedDate,
             },
 
-            include: {
-              driveLocation: {
-                select: {
-                  location: true,
-                },
-              },
-            },
+           include: {
+  driveLocation: {
+    select: {
+      location: true,
+    },
+  },
+
+  participations: {
+    select: {
+      hours: true,
+      waste: true,
+    },
+  },
+},
           },
         );
 
@@ -458,16 +473,38 @@ export class DriveService {
           'No drives found',
         );
       }
+const today = new Date();
 
-      return drives.map((drive) => ({
-        id: drive.id,
-        title: drive.title,
-        date: drive.date,
-        totalHours: drive.totalHours,
-        location:
-          drive.driveLocation?.location ||
-          null,
-      }));
+return drives.map((drive) => {
+  const volunteerCount = drive.participations.length;
+
+  const wasteKg = drive.participations.reduce(
+    (sum, p) => sum + p.waste,
+    0
+  );
+
+  const hours = drive.participations.reduce(
+    (sum, p) => sum + p.hours,
+    0
+  );
+
+  return {
+    id: drive.id,
+    title: drive.title,
+    date: drive.date,
+    totalHours: drive.totalHours,
+    volunteerCount,
+    wasteKg,
+    hours,
+    location: drive.driveLocation?.location || null,
+
+    status:
+      new Date(drive.date) < today
+        ? "Completed"
+        : "Upcoming",
+  };
+});
+      
     } catch (error) {
       if (
         error instanceof BadRequestException
