@@ -310,13 +310,14 @@ export class UserService {
         await this.databaseService.user.findMany(
           {
             select: {
-              id: true,
-              name: true,
-              email: true,
-              ploggerId: true,
-              role: true,
-              status: true,
-            },
+  id: true,
+  name: true,
+  email: true,
+  ploggerId: true,
+  role: true,
+  status: true,
+  createdAt: true,
+},
 
             orderBy: {
               id: 'desc',
@@ -389,6 +390,7 @@ export class UserService {
               ploggerId: true,
               role: true,
               status: true,
+              createdAt: true,
             },
           },
         );
