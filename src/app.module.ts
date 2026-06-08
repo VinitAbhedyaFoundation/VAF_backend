@@ -14,7 +14,9 @@ import { AdminModule } from './admin/admin.module';
 import { AttendanceModule } from './attendance/attendance.module';
 import { MessageModule } from './message/message.module';
 import { MailModule } from './mail/mail.module';
-import { PaymentModule } from './payment/payment.module'; 
+import { PaymentModule } from './payment/payment.module';
+import { CertificateModule } from './certificate/certificate.module';
+import { CloudinaryModule } from './cloudinary/cloudinary.module';
 
 @Module({
   imports: [
@@ -56,6 +58,8 @@ import { PaymentModule } from './payment/payment.module';
     MessageModule,
     MailModule,
     PaymentModule,
+    CertificateModule,
+    CloudinaryModule,
   ],
 
   providers: [
