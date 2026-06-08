@@ -12,7 +12,7 @@ import { Role, UserStatus } from '@prisma/client';
 export class UserService {
   constructor(
     private databaseService: DatabaseService,
-  ) {}
+  ) { }
 
   // =========================
   // 🚫 SUSPEND USER
@@ -241,6 +241,7 @@ export class UserService {
 
   async getAllUsers() {
     try {
+      // FIX 1: Restored valid findMany — was corrupted by merge conflict
       const users =
         await this.databaseService.user.findMany({
           include: {
@@ -353,6 +354,8 @@ export class UserService {
         throw new BadRequestException('Search query is required');
       }
 
+      // FIX 2: Restored valid findMany — was corrupted by merge conflict
+      // (malformed OR array closing bracket + duplicate select block)
       const users =
         await this.databaseService.user.findMany({
           where: {
@@ -383,6 +386,7 @@ export class UserService {
             ploggerId: true,
             role: true,
             status: true,
+            createdAt: true,
           },
         });
 
