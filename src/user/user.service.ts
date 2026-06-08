@@ -10,6 +10,14 @@ import { Role, UserStatus } from '@prisma/client';
 
 @Injectable()
 export class UserService {
+  constructor(
+    private databaseService: DatabaseService,
+  ) {}
+
+  // =========================
+  // 🚫 SUSPEND USER
+  // =========================
+
   async suspendUser(id: number) {
     try {
       const user =
@@ -18,27 +26,19 @@ export class UserService {
         });
 
       if (!user) {
-
-        throw new NotFoundException(
-          'User not found',
-        );
+        throw new NotFoundException('User not found');
       }
 
       if (user.role === Role.SuperAdmin) {
-
-        throw new BadRequestException(
-          'Cannot modify SuperAdmin',
-        );
+        throw new BadRequestException('Cannot modify SuperAdmin');
       }
 
       const updatedUser =
         await this.databaseService.user.update({
           where: { id },
-
           data: {
             status: UserStatus.Suspended,
           },
-
           select: {
             id: true,
             name: true,
@@ -50,9 +50,7 @@ export class UserService {
         });
 
       return {
-        message:
-          'User suspended successfully',
-
+        message: 'User suspended successfully',
         user: updatedUser,
       };
     } catch (error) {
@@ -63,16 +61,15 @@ export class UserService {
         throw error;
       }
 
-      console.error(
-        'suspendUser error:',
-        error,
-      );
-
-      throw new InternalServerErrorException(
-        'Something went wrong',
-      );
+      console.error('suspendUser error:', error);
+      throw new InternalServerErrorException('Something went wrong');
     }
   }
+
+  // =========================
+  // ✅ APPROVE USER
+  // =========================
+
   async approveUser(id: number) {
     try {
       const user =
@@ -81,26 +78,19 @@ export class UserService {
         });
 
       if (!user) {
-        throw new NotFoundException(
-          'User not found',
-        );
+        throw new NotFoundException('User not found');
       }
 
       if (user.role === Role.SuperAdmin) {
-
-        throw new BadRequestException(
-          'Cannot modify SuperAdmin',
-        );
+        throw new BadRequestException('Cannot modify SuperAdmin');
       }
 
       const updatedUser =
         await this.databaseService.user.update({
           where: { id },
-
           data: {
             status: UserStatus.Approved,
           },
-
           select: {
             id: true,
             name: true,
@@ -112,9 +102,7 @@ export class UserService {
         });
 
       return {
-        message:
-          'User approved successfully',
-
+        message: 'User approved successfully',
         user: updatedUser,
       };
     } catch (error) {
@@ -125,19 +113,10 @@ export class UserService {
         throw error;
       }
 
-      console.error(
-        'approveUser error:',
-        error,
-      );
-
-      throw new InternalServerErrorException(
-        'Something went wrong',
-      );
+      console.error('approveUser error:', error);
+      throw new InternalServerErrorException('Something went wrong');
     }
   }
-  constructor(
-    private databaseService: DatabaseService,
-  ) { }
 
   // =========================
   // 👤 USER DETAILS
@@ -146,27 +125,22 @@ export class UserService {
   async getUserById(userId: number) {
     try {
       const user =
-        await this.databaseService.user.findUnique(
-          {
-            where: {
-              id: userId,
-            },
-
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              role: true,
-              ploggerId: true,
-              status: true,
-            },
+        await this.databaseService.user.findUnique({
+          where: {
+            id: userId,
           },
-        );
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            ploggerId: true,
+            status: true,
+          },
+        });
 
       if (!user) {
-        throw new NotFoundException(
-          'User not found',
-        );
+        throw new NotFoundException('User not found');
       }
 
       return {
@@ -174,47 +148,32 @@ export class UserService {
         user,
       };
     } catch (error) {
-      if (
-        error instanceof NotFoundException
-      ) {
+      if (error instanceof NotFoundException) {
         throw error;
       }
 
-      console.error(
-        'getUserById error:',
-        error,
-      );
-
-      throw new InternalServerErrorException(
-        'Something went wrong',
-      );
+      console.error('getUserById error:', error);
+      throw new InternalServerErrorException('Something went wrong');
     }
   }
 
   // =========================
-  // 👤 DELETE USER 
+  // 👤 DELETE USER
   // =========================
+
   async deleteUser(id: number) {
-
     try {
-
       const user =
         await this.databaseService.user.findUnique({
           where: { id },
         });
 
       if (!user) {
-
-        throw new NotFoundException(
-          'User not found',
-        );
+        throw new NotFoundException('User not found');
       }
 
       if (user.role === Role.SuperAdmin) {
-
-        throw new BadRequestException(
-          'SuperAdmin cannot be deleted',
-        );
+        throw new BadRequestException('SuperAdmin cannot be deleted');
       }
 
       await this.databaseService.user.delete({
@@ -222,12 +181,9 @@ export class UserService {
       });
 
       return {
-        message:
-          'User deleted successfully',
+        message: 'User deleted successfully',
       };
-
     } catch (error) {
-
       if (
         error instanceof NotFoundException ||
         error instanceof BadRequestException
@@ -235,14 +191,8 @@ export class UserService {
         throw error;
       }
 
-      console.error(
-        'deleteUser error:',
-        error,
-      );
-
-      throw new InternalServerErrorException(
-        'Something went wrong',
-      );
+      console.error('deleteUser error:', error);
+      throw new InternalServerErrorException('Something went wrong');
     }
   }
 
@@ -250,32 +200,25 @@ export class UserService {
   // 👤 GET USER BY PLOGGER ID
   // =========================
 
-  async getUserByPloggerId(
-    ploggerId: string,
-  ) {
+  async getUserByPloggerId(ploggerId: string) {
     try {
       const user =
-        await this.databaseService.user.findUnique(
-          {
-            where: {
-              ploggerId,
-            },
-
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              role: true,
-              ploggerId: true,
-              status: true,
-            },
+        await this.databaseService.user.findUnique({
+          where: {
+            ploggerId,
           },
-        );
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            ploggerId: true,
+            status: true,
+          },
+        });
 
       if (!user) {
-        throw new NotFoundException(
-          'User not found',
-        );
+        throw new NotFoundException('User not found');
       }
 
       return {
@@ -283,20 +226,12 @@ export class UserService {
         user,
       };
     } catch (error) {
-      if (
-        error instanceof NotFoundException
-      ) {
+      if (error instanceof NotFoundException) {
         throw error;
       }
 
-      console.error(
-        'getUserByPloggerId error:',
-        error,
-      );
-
-      throw new InternalServerErrorException(
-        'Something went wrong',
-      );
+      console.error('getUserByPloggerId error:', error);
+      throw new InternalServerErrorException('Something went wrong');
     }
   }
 
@@ -307,37 +242,104 @@ export class UserService {
   async getAllUsers() {
     try {
       const users =
-        await this.databaseService.user.findMany(
-          {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              ploggerId: true,
-              role: true,
-              status: true,
-            },
-
-            orderBy: {
-              id: 'desc',
-            },
+        await this.databaseService.user.findMany({
+          include: {
+            participations: true,
           },
+          orderBy: {
+            id: 'desc',
+          },
+        });
+
+      const formattedUsers = users.map((user) => {
+        const totalDrives = user.participations.length;
+        const totalHours = user.participations.reduce(
+          (sum: number, p: any) => sum + (p.hours ?? 0),
+          0,
         );
+        const totalWaste = user.participations.reduce(
+          (sum: number, p: any) => sum + (p.waste ?? 0),
+          0,
+        );
+        const score = totalHours + totalWaste + totalDrives * 5;
+
+        return {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          ploggerId: user.ploggerId,
+          role: user.role,
+          status: user.status,
+          totalDrives,
+          totalHours,
+          totalWaste,
+          score,
+        };
+      });
 
       return {
-        message:
-          'Users fetched successfully',
-        users,
+        message: 'Users fetched successfully',
+        users: formattedUsers,
       };
     } catch (error) {
-      console.error(
-        'getAllUsers error:',
-        error,
-      );
+      console.error('getAllUsers error:', error);
+      throw new InternalServerErrorException('Something went wrong');
+    }
+  }
 
-      throw new InternalServerErrorException(
-        'Something went wrong',
-      );
+  // =========================
+  // 🏆 GET LEADERBOARD
+  // =========================
+
+  async getLeaderboard() {
+    try {
+      const users =
+        await this.databaseService.user.findMany({
+          where: {
+            role: Role.User,
+            status: UserStatus.Approved,
+          },
+          include: {
+            participations: true,
+          },
+        });
+
+      const ranked = users
+        .map((user) => {
+          const totalDrives = user.participations.length;
+          const totalHours = user.participations.reduce(
+            (sum: number, p: any) => sum + (p.hours ?? 0),
+            0,
+          );
+          const totalWaste = user.participations.reduce(
+            (sum: number, p: any) => sum + (p.waste ?? 0),
+            0,
+          );
+          const score = totalHours + totalWaste + totalDrives * 5;
+
+          return {
+            id: user.id,
+            name: user.name,
+            ploggerId: user.ploggerId,
+            totalDrives,
+            totalHours,
+            totalWaste,
+            score,
+          };
+        })
+        .sort((a, b) => b.score - a.score)
+        .map((user, index) => ({
+          rank: index + 1,
+          ...user,
+        }));
+
+      return {
+        message: 'Leaderboard fetched successfully',
+        leaderboard: ranked,
+      };
+    } catch (error) {
+      console.error('getLeaderboard error:', error);
+      throw new InternalServerErrorException('Something went wrong');
     }
   }
 
@@ -348,70 +350,53 @@ export class UserService {
   async searchUsers(query: string) {
     try {
       if (!query) {
-        throw new BadRequestException(
-          'Search query is required',
-        );
+        throw new BadRequestException('Search query is required');
       }
 
       const users =
-        await this.databaseService.user.findMany(
-          {
-            where: {
-              OR: [
-                {
-                  name: {
-                    contains: query,
-                    mode:
-                      'insensitive',
-                  },
+        await this.databaseService.user.findMany({
+          where: {
+            OR: [
+              {
+                name: {
+                  contains: query,
+                  mode: 'insensitive',
                 },
-
-                {
-                  email: {
-                    contains: query,
-                    mode:
-                      'insensitive',
-                  },
+              },
+              {
+                email: {
+                  contains: query,
+                  mode: 'insensitive',
                 },
-
-                {
-                  ploggerId: {
-                    contains: query,
-                  },
+              },
+              {
+                ploggerId: {
+                  contains: query,
                 },
-              ],
-            },
-
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              ploggerId: true,
-              role: true,
-              status: true,
-            },
+              },
+            ],
           },
-        );
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            ploggerId: true,
+            role: true,
+            status: true,
+          },
+        });
 
       return {
         message: 'Search results',
         users,
       };
     } catch (error) {
-      if (
-        error instanceof BadRequestException
-      ) {
+      if (error instanceof BadRequestException) {
         throw error;
       }
 
-      console.error(
-        'searchUsers error:',
-        error,
-      );
-
-      throw new InternalServerErrorException(
-        'Something went wrong',
-      );
+      console.error('searchUsers error:', error);
+      throw new InternalServerErrorException('Something went wrong');
     }
   }
 
@@ -419,124 +404,87 @@ export class UserService {
   // 📍 MARK ATTENDANCE
   // =========================
 
-  async markAttendance(
-    temporaryToken: string,
-    userId: number,
-  ) {
+  async markAttendance(temporaryToken: string, userId: number) {
     try {
-      if (
-        !temporaryToken ||
-        temporaryToken.length < 10
-      ) {
-        throw new BadRequestException(
-          'Invalid token',
-        );
+      if (!temporaryToken || temporaryToken.length < 10) {
+        throw new BadRequestException('Invalid token');
       }
 
       const drive =
-        await this.databaseService.drive.findFirst(
-          {
-            where: {
-              temporaryToken,
-            },
-
-            orderBy: {
-              date: 'desc',
-            },
-
-            select: {
-              id: true,
-            },
+        await this.databaseService.drive.findFirst({
+          where: {
+            temporaryToken,
           },
-        );
+          orderBy: {
+            date: 'desc',
+          },
+          select: {
+            id: true,
+          },
+        });
 
       if (!drive) {
-        throw new NotFoundException(
-          'Drive not found or token is invalid.',
-        );
+        throw new NotFoundException('Drive not found or token is invalid.');
       }
 
       const existing =
-        await this.databaseService.participation.findUnique(
-          {
-            where: {
-              userId_driveId: {
-                userId,
-                driveId: drive.id,
-              },
+        await this.databaseService.participation.findUnique({
+          where: {
+            userId_driveId: {
+              userId,
+              driveId: drive.id,
             },
           },
-        );
+        });
 
       if (existing) {
-        throw new BadRequestException(
-          'Attendance already marked',
-        );
+        throw new BadRequestException('Attendance already marked');
       }
 
-      await this.databaseService.$transaction(
-        [
-          this.databaseService.participation.create(
-            {
-              data: {
-                userId,
-                driveId: drive.id,
-              },
+      await this.databaseService.$transaction([
+        this.databaseService.participation.create({
+          data: {
+            userId,
+            driveId: drive.id,
+          },
+        }),
+
+        this.databaseService.drive.update({
+          where: {
+            id: drive.id,
+          },
+          data: {
+            volunteerCount: {
+              increment: 1,
             },
-          ),
+          },
+        }),
 
-          this.databaseService.drive.update(
-            {
-              where: {
-                id: drive.id,
-              },
-
-              data: {
-                volunteerCount: {
-                  increment: 1,
-                },
-              },
+        this.databaseService.user.update({
+          where: {
+            id: userId,
+          },
+          data: {
+            drivesCount: {
+              increment: 1,
             },
-          ),
-
-          this.databaseService.user.update(
-            {
-              where: {
-                id: userId,
-              },
-
-              data: {
-                drivesCount: {
-                  increment: 1,
-                },
-              },
-            },
-          ),
-        ],
-      );
+          },
+        }),
+      ]);
 
       return {
-        message:
-          'Attendance marked successfully',
+        message: 'Attendance marked successfully',
       };
     } catch (error) {
       if (
-        error instanceof
-        BadRequestException ||
-        error instanceof
-        NotFoundException
+        error instanceof BadRequestException ||
+        error instanceof NotFoundException
       ) {
         throw error;
       }
 
-      console.error(
-        'markAttendance error:',
-        error,
-      );
-
-      throw new InternalServerErrorException(
-        'Something went wrong',
-      );
+      console.error('markAttendance error:', error);
+      throw new InternalServerErrorException('Something went wrong');
     }
   }
 
@@ -551,7 +499,6 @@ export class UserService {
           where: {
             userId,
           },
-
           include: {
             drive: {
               include: {
@@ -561,35 +508,26 @@ export class UserService {
           },
         });
 
-      const drives = participations.map(
-        (p: any) => ({
-          id: p.drive.id,
-          date: p.drive.date,
-          totalHours: p.drive.totalHours,
-
-          location:
-            p.drive.driveLocation?.location || null,
-        }),
-      );
+      const drives = participations.map((p: any) => ({
+        id: p.drive.id,
+        date: p.drive.date,
+        totalHours: p.drive.totalHours,
+        hours: p.hours ?? 0,
+        waste: p.waste ?? 0,
+        status: p.status,
+        location: p.drive.driveLocation?.location || null,
+      }));
 
       return {
-        message: drives.length
-          ? 'Drives Attended'
-          : 'No drives attended',
-
+        message: drives.length ? 'Drives Attended' : 'No drives attended',
         drives,
       };
     } catch (error) {
-      console.error(
-        'drivesAttended error:',
-        error,
-      );
-
-      throw new InternalServerErrorException(
-        'Something went wrong',
-      );
+      console.error('drivesAttended error:', error);
+      throw new InternalServerErrorException('Something went wrong');
     }
   }
+
   // =========================
   // 👑 PROMOTE USER
   // =========================
@@ -602,34 +540,24 @@ export class UserService {
         });
 
       if (!user) {
-        throw new NotFoundException(
-          'User not found',
-        );
+        throw new NotFoundException('User not found');
       }
-      if (user.role === Role.SuperAdmin) {
 
-        throw new BadRequestException(
-          'Cannot modify SuperAdmin',
-        );
+      if (user.role === Role.SuperAdmin) {
+        throw new BadRequestException('Cannot modify SuperAdmin');
       }
 
       if (user.role === Role.Admin) {
-
-        throw new BadRequestException(
-          'User is already Admin',
-        );
+        throw new BadRequestException('User is already Admin');
       }
 
       const updatedUser =
         await this.databaseService.user.update({
           where: { id },
-
           data: {
             role: Role.Admin,
             status: UserStatus.Approved,
-
           },
-
           select: {
             id: true,
             name: true,
@@ -641,9 +569,7 @@ export class UserService {
         });
 
       return {
-        message:
-          'User promoted to Admin successfully',
-
+        message: 'User promoted to Admin successfully',
         user: updatedUser,
       };
     } catch (error) {
@@ -654,16 +580,11 @@ export class UserService {
         throw error;
       }
 
-      console.error(
-        'promoteUser error:',
-        error,
-      );
-
-      throw new InternalServerErrorException(
-        'Something went wrong',
-      );
+      console.error('promoteUser error:', error);
+      throw new InternalServerErrorException('Something went wrong');
     }
   }
+
   // =========================
   // 📋 GET PENDING ATTENDANCE
   // =========================
@@ -675,7 +596,6 @@ export class UserService {
           where: {
             status: 'Pending',
           },
-
           include: {
             user: {
               select: {
@@ -684,7 +604,6 @@ export class UserService {
                 email: true,
               },
             },
-
             drive: {
               select: {
                 id: true,
@@ -693,7 +612,6 @@ export class UserService {
               },
             },
           },
-
           orderBy: {
             createdAt: 'desc',
           },
@@ -703,17 +621,9 @@ export class UserService {
         message: 'Pending attendance fetched successfully',
         attendance: pendingAttendance,
       };
-
     } catch (error) {
-
-      console.error(
-        'getPendingAttendance error:',
-        error,
-      );
-
-      throw new InternalServerErrorException(
-        'Something went wrong',
-      );
+      console.error('getPendingAttendance error:', error);
+      throw new InternalServerErrorException('Something went wrong');
     }
   }
 
@@ -721,53 +631,38 @@ export class UserService {
   // ✅ APPROVE ATTENDANCE
   // =========================
 
-  async approveAttendance(id: number) {
+  async approveAttendance(id: number, hours?: number, waste?: number) {
     try {
-
       const attendance =
         await this.databaseService.participation.findUnique({
           where: { id },
         });
 
       if (!attendance) {
-
-        throw new NotFoundException(
-          'Attendance record not found',
-        );
+        throw new NotFoundException('Attendance record not found');
       }
 
       const updatedAttendance =
         await this.databaseService.participation.update({
           where: { id },
-
           data: {
             status: 'Approved',
+            ...(hours !== undefined && { hours }),
+            ...(waste !== undefined && { waste }),
           },
         });
 
       return {
-        message:
-          'Attendance approved successfully',
-
+        message: 'Attendance approved successfully',
         attendance: updatedAttendance,
       };
-
     } catch (error) {
-
-      if (
-        error instanceof NotFoundException
-      ) {
+      if (error instanceof NotFoundException) {
         throw error;
       }
 
-      console.error(
-        'approveAttendance error:',
-        error,
-      );
-
-      throw new InternalServerErrorException(
-        'Something went wrong',
-      );
+      console.error('approveAttendance error:', error);
+      throw new InternalServerErrorException('Something went wrong');
     }
   }
 
@@ -777,51 +672,34 @@ export class UserService {
 
   async rejectAttendance(id: number) {
     try {
-
       const attendance =
         await this.databaseService.participation.findUnique({
           where: { id },
         });
 
       if (!attendance) {
-
-        throw new NotFoundException(
-          'Attendance record not found',
-        );
+        throw new NotFoundException('Attendance record not found');
       }
 
       const updatedAttendance =
         await this.databaseService.participation.update({
           where: { id },
-
           data: {
             status: 'Rejected',
           },
         });
 
       return {
-        message:
-          'Attendance rejected successfully',
-
+        message: 'Attendance rejected successfully',
         attendance: updatedAttendance,
       };
-
     } catch (error) {
-
-      if (
-        error instanceof NotFoundException
-      ) {
+      if (error instanceof NotFoundException) {
         throw error;
       }
 
-      console.error(
-        'rejectAttendance error:',
-        error,
-      );
-
-      throw new InternalServerErrorException(
-        'Something went wrong',
-      );
+      console.error('rejectAttendance error:', error);
+      throw new InternalServerErrorException('Something went wrong');
     }
   }
 }

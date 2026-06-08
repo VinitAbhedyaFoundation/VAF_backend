@@ -1,17 +1,26 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 
 @Injectable()
 export class DashboardService {
   constructor(
     private prisma: DatabaseService,
-  ) {}
+  ) { }
 
   async getUserDashboard(userId: number) {
     // 🔹 Get user
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-    });
+    const user =
+      await this.prisma.user.findUnique({
+        where: {
+          id: userId,
+        },
+      });
+
+    if (!user) {
+      throw new NotFoundException(
+        'User not found',
+      );
+    }
 
     // 🔹 Get participations
     const participations =
@@ -36,7 +45,9 @@ export class DashboardService {
     // =========================
 
     const drivesJoined =
-      participations.length;
+      participations.filter(
+        (p) => p.status === 'Approved',
+      ).length;
 
     const hoursVolunteered =
       participations.reduce(
@@ -73,33 +84,32 @@ export class DashboardService {
       }
     > = {};
 
-    participations.forEach(
-      (p: any) => {
-        const date =
-          p.createdAt
-            .toISOString()
-            .split('T')[0];
+    participations.forEach((p: any) => {
+      const date =
+        p.drive?.date
+          ?.toISOString()
+          .split('T')[0] ??
+        p.createdAt
+          .toISOString()
+          .split('T')[0];
 
-        if (!activityMap[date]) {
-          activityMap[date] = {
-            date,
-            hours: 0,
-            waste: 0,
-            location:
-              p.drive
-                ?.driveLocation
-                ?.location ||
-              'Unknown',
-          };
-        }
+      if (!activityMap[date]) {
+        activityMap[date] = {
+          date,
+          hours: 0,
+          waste: 0,
+          location:
+            p.drive?.driveLocation?.location ||
+            'Unknown',
+        };
+      }
 
-        activityMap[date].hours +=
-          p.hours ?? 0;
+      activityMap[date].hours +=
+        p.hours ?? 0;
 
-        activityMap[date].waste +=
-          p.waste ?? 0;
-      },
-    );
+      activityMap[date].waste +=
+        p.waste ?? 0;
+    });
 
     const activity =
       Object.values(activityMap);
@@ -110,6 +120,9 @@ export class DashboardService {
 
     const recentDrives =
       participations
+        .filter(
+          (p) => p.status === 'Approved',
+        )
         .slice(-3)
         .reverse()
         .map((p: any) => ({
@@ -135,30 +148,38 @@ export class DashboardService {
     // 🏆 Certificates
     // =========================
 
-    const certificates =
-      participations.map(
-        (p: any) => ({
-          id: p.id,
+    const certificateRecords =
+      await this.prisma.certificate.findMany({
+        where: {
+          userId,
+        },
+        include: {
+          drive: true,
+        },
+        orderBy: {
+          issuedAt: 'desc',
+        },
+      });
 
-          title: `${
-            p.drive?.title ||
-            'Drive'
+    const certificates =
+      certificateRecords.map((c: any) => ({
+        id: c.id,
+
+        title: `${c.drive?.title || 'Drive'
           } Participation`,
 
-          drive:
-            p.drive?.title ||
-            'Drive',
+        drive:
+          c.drive?.title || 'Drive',
 
-          hours:
-            p.hours ?? 0,
+        issueDate:
+          c.issuedAt,
 
-          issueDate:
-            p.createdAt,
+        fileUrl:
+          c.fileUrl,
 
-          type:
-            'participation',
-        }),
-      );
+        type:
+          'participation',
+      }));
 
     // =========================
     // 🚀 Final Response

@@ -73,6 +73,17 @@ export class UserController {
     return this.userService.getAllUsers();
   }
 
+  @ApiBearerAuth()
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(Role.Admin, Role.SuperAdmin)
+@Get('leaderboard')
+@ApiOperation({
+  summary: 'Get top contributors',
+})
+getLeaderboard() {
+  return this.userService.getLeaderboard();
+}
+
   // =========================
   // SEARCH USERS
   // =========================
@@ -182,12 +193,22 @@ getPendingAttendance() {
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.Admin, Role.SuperAdmin)
 @Patch('attendance/approve/:id')
-@ApiOperation({ summary: 'Approve attendance' })
+@ApiOperation({
+  summary: 'Approve attendance',
+})
 approveAttendance(
   @Param('id') id: string,
+
+  @Body()
+  body: {
+    hours?: number;
+    waste?: number;
+  },
 ) {
   return this.userService.approveAttendance(
     Number(id),
+    body.hours,
+    body.waste,
   );
 }
 

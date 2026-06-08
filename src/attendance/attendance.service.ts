@@ -1,9 +1,15 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+} from '@nestjs/common';
+
 import { DatabaseService } from '../database/database.service';
 
 @Injectable()
 export class AttendanceService {
-  constructor(private db: DatabaseService) {}
+  constructor(
+    private db: DatabaseService,
+  ) {}
 
   // 🔹 GET ALL ATTENDANCE
   async getAll() {
@@ -15,8 +21,27 @@ export class AttendanceService {
     });
   }
 
+  // 🔹 GET MY ATTENDANCE
+  async getMyAttendance(
+    userId: number,
+  ) {
+    return this.db.participation.findMany({
+      where: {
+        userId,
+      },
+      select: {
+        id: true,
+        driveId: true,
+        status: true,
+      },
+    });
+  }
+
   // 🔹 MARK ATTENDANCE
-  async markAttendance(userId: number, driveId: number) {
+  async markAttendance(
+    userId: number,
+    driveId: number,
+  ) {
     try {
       return await this.db.participation.create({
         data: {
@@ -25,14 +50,36 @@ export class AttendanceService {
         },
       });
     } catch (error) {
-      throw new BadRequestException('Attendance already marked');
+      throw new BadRequestException(
+        'Attendance already marked',
+      );
     }
   }
 
-  // 🔹 APPROVE ATTENDANCE (TEMPORARY FIX)
-  async approveAttendance(id: number) {
-    throw new BadRequestException(
-      'Approval system not implemented yet (no status field)',
-    );
+  // 🔹 APPROVE ATTENDANCE
+  async approveAttendance(
+    id: number,
+  ) {
+    const attendance =
+      await this.db.participation.findUnique({
+        where: {
+          id,
+        },
+      });
+
+    if (!attendance) {
+      throw new BadRequestException(
+        'Attendance record not found',
+      );
+    }
+
+    return this.db.participation.update({
+      where: {
+        id,
+      },
+      data: {
+        status: 'Approved',
+      },
+    });
   }
 }
