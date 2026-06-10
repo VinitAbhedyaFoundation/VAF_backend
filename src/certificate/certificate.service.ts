@@ -21,7 +21,7 @@ export class CertificateService {
     private db: DatabaseService,
     private pdfService: PdfService,
     private cloudinaryService: CloudinaryService,
-  ) {}
+  ) { }
 
   async generateCertificates(
     driveId: number,
@@ -81,22 +81,31 @@ export class CertificateService {
             participant.drive.date,
             participant.drive.driveLocation
               ?.location ??
-              'Location Not Specified',
+            'Location Not Specified',
+
             getTemplatePath(
               participant.drive.title ?? '',
+
             ),
+
           );
+        console.log('Generated PDF:', pdfPath);
 
         const upload =
           await this.cloudinaryService.uploadFile(
             pdfPath,
           );
 
+        const downloadUrl =
+  `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}` +
+  `/image/upload/fl_attachment/v${upload.version}/${upload.public_id}.${upload.format}`;
+        console.log('Download URL:', downloadUrl);
+
         await this.db.certificate.create({
           data: {
             userId: participant.userId,
             driveId,
-            fileUrl: upload.secure_url,
+            fileUrl: downloadUrl,
           },
         });
 

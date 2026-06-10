@@ -45,9 +45,7 @@ export class DashboardService {
     // =========================
 
     const drivesJoined =
-      participations.filter(
-        (p) => p.status === 'Approved',
-      ).length;
+  participations.length;
 
     const hoursVolunteered =
       participations.reduce(
@@ -119,11 +117,7 @@ export class DashboardService {
     // =========================
 
     const recentDrives =
-      participations
-        .filter(
-          (p) => p.status === 'Approved',
-        )
-        .slice(-3)
+  participations
         .reverse()
         .map((p: any) => ({
           title:
@@ -142,6 +136,9 @@ export class DashboardService {
 
           hours:
             p.hours ?? 0,
+
+            status:
+              p.status,
         }));
 
     // =========================

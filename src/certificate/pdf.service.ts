@@ -10,12 +10,12 @@ import * as fs from 'fs';
 @Injectable()
 export class PdfService {
   async generateCertificate(
-  volunteerName: string,
-  driveName: string,
-  driveDate: Date,
-  location: string,
-  templatePath: string,
-) {
+    volunteerName: string,
+    driveName: string,
+    driveDate: Date,
+    location: string,
+    templatePath: string,
+  ) {
     const templateBytes =
       fs.readFileSync(templatePath);
 
@@ -69,36 +69,36 @@ export class PdfService {
     });
 
     const issuedDate =
-  driveDate.toLocaleDateString(
-    'en-IN',
-    {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    },
-  );
+      driveDate.toLocaleDateString(
+        'en-IN',
+        {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric',
+        },
+      );
 
-page.drawText(
-  issuedDate,
-  {
-    x: 1235,
-    y: 932,
-    size: 14,
-    font,
-    color: rgb(0, 0, 0),
-  },
-);
+    page.drawText(
+      issuedDate,
+      {
+        x: 1235,
+        y: 932,
+        size: 14,
+        font,
+        color: rgb(0, 0, 0),
+      },
+    );
 
-page.drawText(
-  location,
-  {
-    x: 500,
-    y: 140,
-    size: 16,
-    font,
-    color: rgb(0, 0.3, 0),
-  },
-);
+    page.drawText(
+      location,
+      {
+        x: 500,
+        y: 140,
+        size: 16,
+        font,
+        color: rgb(0, 0.3, 0),
+      },
+    );
 
     const pdfBytes =
       await pdfDoc.save();
@@ -119,7 +119,22 @@ page.drawText(
       outputPath,
       pdfBytes,
     );
+    console.log(
+      'PDF bytes:',
+      pdfBytes.length,
+    );
 
+    console.log(
+      'Output path:',
+      outputPath,
+    );
+    const verifyPdf =
+      await PDFDocument.load(pdfBytes);
+
+    console.log(
+      'PDF verified successfully',
+      verifyPdf.getPageCount(),
+    );
     return outputPath;
   }
 }
