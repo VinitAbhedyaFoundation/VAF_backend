@@ -90,6 +90,7 @@ model Participation {
   drive Drive @relation(fields: [driveId], references: [id])
 
   user User @relation(fields: [userId], references: [id])
+  attendanceMarked Boolean @default(false)
 
   @@unique([userId, driveId])
   @@index([userId])

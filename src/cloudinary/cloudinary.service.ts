@@ -35,10 +35,11 @@ export class CloudinaryService {
         await cloudinary.uploader.upload(
           filePath,
           {
-            resource_type: 'raw',
+            resource_type: 'auto',
             folder: 'vaf-certificates',
           },
         );
+        console.log(result);
 
       this.logger.log(
         `Upload successful: ${result.secure_url}`,
