@@ -192,14 +192,15 @@ export class DriveService {
         );
 
       return drives.map((drive) => ({
-  id: drive.id,
-  title: drive.title,
-  date: drive.date,
-  totalHours: drive.totalHours,
-  volunteerCount: drive.volunteerCount,
-  wasteKg: 0, // temporary until waste API is added
-  location: drive.driveLocation?.location || null,
-}));
+        id: drive.id,
+        title: drive.title,
+        date: drive.date,
+        totalHours: drive.totalHours,
+        volunteerCount: drive.volunteerCount,
+        wasteKg: 0, // temporary until waste API is added
+        location: drive.driveLocation?.location || null,
+        completed: drive.completed,
+      }));
     } catch (error) {
       this.logger.error(
         'Fetch drives failed',
@@ -269,21 +270,21 @@ export class DriveService {
               id,
             },
 
-           include: {
-  driveLocation: {
-    select: {
-      location: true,
-    },
-  },
+            include: {
+              driveLocation: {
+                select: {
+                  location: true,
+                },
+              },
 
-  participations: {
-    select: {
-      hours: true,
-      waste: true,
-      status: true,
-    },
-  },
-},
+              participations: {
+                select: {
+                  hours: true,
+                  waste: true,
+                  status: true,
+                },
+              },
+            },
           },
         );
 
@@ -298,6 +299,7 @@ export class DriveService {
         title: drive.title,
         date: drive.date,
         totalHours: drive.totalHours,
+        completed: drive.completed,
         location:
           drive.driveLocation?.location ||
           null,
@@ -451,20 +453,20 @@ export class DriveService {
               date: parsedDate,
             },
 
-           include: {
-  driveLocation: {
-    select: {
-      location: true,
-    },
-  },
+            include: {
+              driveLocation: {
+                select: {
+                  location: true,
+                },
+              },
 
-  participations: {
-    select: {
-      hours: true,
-      waste: true,
-    },
-  },
-},
+              participations: {
+                select: {
+                  hours: true,
+                  waste: true,
+                },
+              },
+            },
           },
         );
 
@@ -473,38 +475,38 @@ export class DriveService {
           'No drives found',
         );
       }
-const today = new Date();
+      const today = new Date();
 
-return drives.map((drive) => {
-  const volunteerCount = drive.participations.length;
+      return drives.map((drive) => {
+        const volunteerCount = drive.participations.length;
 
-  const wasteKg = drive.participations.reduce(
-    (sum, p) => sum + p.waste,
-    0
-  );
+        const wasteKg = drive.participations.reduce(
+          (sum, p) => sum + p.waste,
+          0
+        );
 
-  const hours = drive.participations.reduce(
-    (sum, p) => sum + p.hours,
-    0
-  );
+        const hours = drive.participations.reduce(
+          (sum, p) => sum + p.hours,
+          0
+        );
 
-  return {
-    id: drive.id,
-    title: drive.title,
-    date: drive.date,
-    totalHours: drive.totalHours,
-    volunteerCount,
-    wasteKg,
-    hours,
-    location: drive.driveLocation?.location || null,
+        return {
+          id: drive.id,
+          title: drive.title,
+          date: drive.date,
+          totalHours: drive.totalHours,
+          volunteerCount,
+          wasteKg,
+          hours,
+          location: drive.driveLocation?.location || null,
 
-    status:
-      new Date(drive.date) < today
-        ? "Completed"
-        : "Upcoming",
-  };
-});
-      
+          status:
+            new Date(drive.date) < today
+              ? "Completed"
+              : "Upcoming",
+        };
+      });
+
     } catch (error) {
       if (
         error instanceof BadRequestException
@@ -527,39 +529,50 @@ return drives.map((drive) => {
   // =========================
 
   async getUpcomingDrives() {
-  try {
-    const drives =
-      await this.databaseService.drive.findMany({
-        orderBy: {
-          id: 'desc',
-        },
+    try {
+      const drives =
+        await this.databaseService.drive.findMany({
+          orderBy: {
+            id: 'desc',
+          },
 
-        include: {
-          driveLocation: {
-            select: {
-              location: true,
+          include: {
+            driveLocation: {
+              select: {
+                location: true,
+              },
             },
           },
-        },
-      });
+        });
 
-    return drives.map((drive) => ({
-      id: drive.id,
-      title: drive.title,
-      date: drive.date,
-      totalHours: drive.totalHours,
-      location:
-        drive.driveLocation?.location ||
-        null,
-    }));
-  } catch (error) {
-    this.logger.error(
-      'Fetch upcoming drives failed',
-    );
+      return drives.map((drive) => ({
+        id: drive.id,
+        title: drive.title,
+        date: drive.date,
+        totalHours: drive.totalHours,
+        completed: drive.completed,
+        location:
+          drive.driveLocation?.location ||
+          null,
+      }));
+    } catch (error) {
+      this.logger.error(
+        'Fetch upcoming drives failed',
+      );
 
-    throw new InternalServerErrorException(
-      'Failed to fetch upcoming drives',
-    );
+      throw new InternalServerErrorException(
+        'Failed to fetch upcoming drives',
+      );
+    }
   }
-}
+  async completeDrive(id: number) {
+    return this.databaseService.drive.update({
+      where: {
+        id,
+      },
+      data: {
+        completed: true,
+      },
+    });
+  }
 }

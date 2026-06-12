@@ -33,7 +33,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 export class DriveController {
   constructor(
     private readonly driveService: DriveService,
-  ) {}
+  ) { }
 
   // ================= ADMIN ROUTES =================
 
@@ -173,5 +173,20 @@ export class DriveController {
     return this.driveService.findOne(
       id,
     );
+  }
+
+  
+  @ApiBearerAuth()
+  @UseGuards(
+    JwtAuthGuard,
+    RolesGuard,
+  )
+  @Roles('Admin', 'SuperAdmin')
+  @Patch(':id/complete')
+  completeDrive(
+    @Param('id', ParseIntPipe)
+    id: number,
+  ) {
+    return this.driveService.completeDrive(id);
   }
 }
