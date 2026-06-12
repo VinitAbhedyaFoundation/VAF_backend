@@ -20,7 +20,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 export class AttendanceController {
   constructor(
     private readonly service: AttendanceService,
-  ) {}
+  ) { }
 
   // 🔹 Get all attendance records
   @Get('all')
@@ -29,28 +29,32 @@ export class AttendanceController {
   }
 
   // 🔹 Join a drive
-  @Post('mark')
-  mark(
+  @Post('join')
+  joinDrive(
     @Req() req: any,
     @Body() body: { driveId: number },
   ) {
-    console.log('====================');
-    console.log('ATTENDANCE MARK');
-    console.log('USER:', req.user);
-    console.log('BODY:', body);
-    console.log('USER ID:', req.user?.id);
-    console.log('USER SUB:', req.user?.sub);
-    console.log('====================');
+    return this.service.joinDrive(
+      req.user.sub,
+      body.driveId,
+    );
+  }
 
+  // 🔹 Mark attendance for a drive
+  @Post('mark')
+  markAttendance(
+    @Req() req: any,
+    @Body() body: { driveId: number },
+  ) {
     return this.service.markAttendance(
-      req.user?.sub,
+      req.user.sub,
       body.driveId,
     );
   }
 
   // 🔹 Approve attendance (Admin only)
   @Patch('approve/:id')
-  @UseGuards(RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard,)
   @Roles('Admin', 'SuperAdmin')
   approve(
     @Param('id', ParseIntPipe)
@@ -64,10 +68,8 @@ export class AttendanceController {
   getMyAttendance(
     @Req() req: any,
   ) {
-    console.log('GET MY ATTENDANCE USER:', req.user);
-
     return this.service.getMyAttendance(
-      req.user?.id,
+      req.user?.sub,
     );
   }
 }

@@ -59,6 +59,7 @@ model Drive {
   participations    Participation[]
   certificates      Certificate[]
   certificateIssued Boolean         @default(false)
+  completed Boolean @default(false)
 
   @@index([locationId])
   @@index([temporaryToken])
@@ -80,7 +81,7 @@ model Participation {
   userId  Int
   driveId Int
 
-  status AttendanceStatus @default(Pending)
+  status AttendanceStatus @default(Registered)
 
   hours Int @default(0)
   waste Int @default(0)
@@ -164,6 +165,7 @@ enum UserStatus {
 }
 
 enum AttendanceStatus {
+  Registered
   Pending
   Approved
   Rejected

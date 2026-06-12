@@ -33,31 +33,69 @@ export class AttendanceService {
         id: true,
         driveId: true,
         status: true,
+        attendanceMarked: true,
       },
     });
+  }
+
+  // JOIN A DRIVE
+  async joinDrive(userId: number, driveId: number) {
+    try {
+      return await this.db.participation.create({
+        data: {
+          userId,
+          driveId,
+          status: 'Registered',
+          attendanceMarked: false,
+        },
+      });
+    } catch {
+      throw new BadRequestException(
+        'Already joined this drive',
+      );
+    }
   }
 
   // 🔹 MARK ATTENDANCE
   async markAttendance(
-  userId: number,
-  driveId: number,
-) {
-  try {
-    return await this.db.participation.create({
+    userId: number,
+    driveId: number,
+  ) {
+    const participation =
+      await this.db.participation.findUnique({
+        where: {
+          userId_driveId: {
+            userId,
+            driveId,
+          },
+        },
+      });
+
+    if (!participation) {
+      throw new BadRequestException(
+        'Drive not joined',
+      );
+    }
+
+    if (participation.attendanceMarked) {
+      throw new BadRequestException(
+        'Attendance already submitted',
+      );
+    }
+
+    return this.db.participation.update({
+      where: {
+        userId_driveId: {
+          userId,
+          driveId,
+        },
+      },
       data: {
-        userId,
-        driveId,
+        attendanceMarked: true,
+        status: 'Pending',
       },
     });
-  } catch (error) {
-    console.log('========== ERROR ==========');
-    console.log(error);
-    console.log('USER ID:', userId);
-    console.log('DRIVE ID:', driveId);
-
-    throw error;
   }
-}
 
   // 🔹 APPROVE ATTENDANCE
   async approveAttendance(
