@@ -8,9 +8,9 @@ datasource db {
 }
 
 model User {
-  id                   Int           @id @default(autoincrement())
+  id                   Int             @id @default(autoincrement())
   name                 String
-  email                String        @unique
+  email                String          @unique
   password             String
   phone                String?
   parentNumber         String?
@@ -23,75 +23,60 @@ model User {
   city                 String?
   state                String?
   collegeOrCompany     String?
+  role                 Role            @default(User)
+  drivesCount          Int             @default(0)
+  ploggerId            String          @unique
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+  status               UserStatus      @default(Pending)
   certificates         Certificate[]
-
-  // 🔐 Role + Status
-  role   Role       @default(User)
-  status UserStatus @default(Pending)
-
-  drivesCount Int    @default(0)
-  ploggerId   String @unique
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // 🔗 Relations
-  participations Participation[]
-  messagesSent   Message[]
-  notifications  Notification[]
+  messagesSent         Message[]
+  notifications        Notification[]
+  participations       Participation[]
 
   @@index([email])
 }
 
 model Drive {
-  id             Int       @id @default(autoincrement())
-  date           DateTime
-  totalHours     Int
-  volunteerCount Int       @default(0)
-  temporaryToken String    @unique
-  expiryDate     DateTime?
-  locationId     Int
-
+  id                Int             @id @default(autoincrement())
+  date              DateTime
+  totalHours        Int
+  volunteerCount    Int             @default(0)
+  temporaryToken    String          @unique
+  expiryDate        DateTime?
+  locationId        Int
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
   title             String?
+  certificateIssued Boolean         @default(false)
+  completed         Boolean         @default(false)
+  certificates      Certificate[]
   driveLocation     DriveLocation   @relation(fields: [locationId], references: [id])
   participations    Participation[]
-  certificates      Certificate[]
-  certificateIssued Boolean         @default(false)
-  completed Boolean @default(false)
 
   @@index([locationId])
   @@index([temporaryToken])
 }
 
 model DriveLocation {
-  id       Int    @id @default(autoincrement())
-  location String @unique
-
+  id        Int      @id @default(autoincrement())
+  location  String   @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  drives Drive[]
+  drives    Drive[]
 }
 
 model Participation {
-  id Int @id @default(autoincrement())
-
-  userId  Int
-  driveId Int
-
-  status AttendanceStatus @default(Registered)
-
-  hours Int @default(0)
-  waste Int @default(0)
-
-  createdAt DateTime @default(now())
-
-  drive Drive @relation(fields: [driveId], references: [id])
-
-  user User @relation(fields: [userId], references: [id])
-  attendanceMarked Boolean @default(false)
+  id               Int              @id @default(autoincrement())
+  userId           Int
+  driveId          Int
+  hours            Int              @default(0)
+  waste            Int              @default(0)
+  createdAt        DateTime         @default(now())
+  status           AttendanceStatus @default(Registered)
+  attendanceMarked Boolean          @default(false)
+  drive            Drive            @relation(fields: [driveId], references: [id])
+  user             User             @relation(fields: [userId], references: [id])
 
   @@unique([userId, driveId])
   @@index([userId])
@@ -100,8 +85,7 @@ model Participation {
 }
 
 model Message {
-  id Int @id @default(autoincrement())
-
+  id          Int      @id @default(autoincrement())
   subject     String
   content     String
   senderId    Int
@@ -112,21 +96,28 @@ model Message {
   @@index([senderId])
 }
 
-//////////////////////////////////////////////////////
-// 🔹 NOTIFICATION
-//////////////////////////////////////////////////////
-
 model Notification {
-  id Int @id @default(autoincrement())
-
-  userId  Int?
-  title   String
-  message String
-
-  isRead Boolean @default(false)
-
+  id        Int      @id @default(autoincrement())
+  userId    Int?
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
   user      User?    @relation(fields: [userId], references: [id])
+}
+
+model Certificate {
+  id       Int      @id @default(autoincrement())
+  userId   Int
+  driveId  Int
+  fileUrl  String?
+  issuedAt DateTime @default(now())
+  drive    Drive    @relation(fields: [driveId], references: [id])
+  user     User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, driveId])
+  @@index([userId])
+  @@index([driveId])
 }
 
 enum Gender {
@@ -165,26 +156,8 @@ enum UserStatus {
 }
 
 enum AttendanceStatus {
-  Registered
   Pending
   Approved
   Rejected
-}
-
-model Certificate {
-  id Int @id @default(autoincrement())
-
-  userId  Int
-  driveId Int
-
-  fileUrl String?
-
-  issuedAt DateTime @default(now())
-
-  user  User  @relation(fields: [userId], references: [id])
-  drive Drive @relation(fields: [driveId], references: [id])
-
-  @@unique([userId, driveId])
-  @@index([userId])
-  @@index([driveId])
+  Registered
 }

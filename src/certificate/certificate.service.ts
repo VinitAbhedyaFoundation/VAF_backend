@@ -74,20 +74,18 @@ export class CertificateService {
           continue;
         }
 
+        console.log("Generating certificate for:", participant.user.name, participant.drive.title);
         const pdfPath =
           await this.pdfService.generateCertificate(
             participant.user.name,
-            participant.drive.title ?? 'Drive',
+            participant.drive.title ?? '',
             participant.drive.date,
             participant.drive.driveLocation
               ?.location ??
             'Location Not Specified',
-
             getTemplatePath(
-              participant.drive.title ?? '',
-
+              participant.drive.title ?? 'Drive',
             ),
-
           );
         console.log('Generated PDF:', pdfPath);
 
@@ -97,8 +95,8 @@ export class CertificateService {
           );
 
         const downloadUrl =
-  `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}` +
-  `/image/upload/fl_attachment/v${upload.version}/${upload.public_id}.${upload.format}`;
+          `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}` +
+          `/image/upload/fl_attachment/v${upload.version}/${upload.public_id}.${upload.format}`;
         console.log('Download URL:', downloadUrl);
 
         await this.db.certificate.create({
@@ -115,10 +113,12 @@ export class CertificateService {
       } catch (error) {
         failed++;
 
-        this.logger.error(
-          `Certificate generation failed for user ${participant.userId}`,
-          error,
+        console.error(
+          "CERTIFICATE ERROR:",
+          error
         );
+
+        throw error;
       }
     }
 
