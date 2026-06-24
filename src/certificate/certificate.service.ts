@@ -87,7 +87,6 @@ export class CertificateService {
               participant.drive.title ?? 'Drive',
             ),
           );
-        console.log('Generated PDF:', pdfPath);
 
         const upload =
           await this.cloudinaryService.uploadFile(
@@ -97,7 +96,6 @@ export class CertificateService {
         const downloadUrl =
           `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}` +
           `/image/upload/fl_attachment/v${upload.version}/${upload.public_id}.${upload.format}`;
-        console.log('Download URL:', downloadUrl);
 
         await this.db.certificate.create({
           data: {
