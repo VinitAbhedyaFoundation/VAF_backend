@@ -16,15 +16,7 @@ export class PdfService {
     location: string,
     templatePath: string,
   ) {
-    console.log(
-      'Template path:',
-      templatePath,
-    );
 
-    console.log(
-      'Template exists:',
-      fs.existsSync(templatePath),
-    );
 
     if (!fs.existsSync(templatePath)) {
       throw new Error(
@@ -35,32 +27,16 @@ export class PdfService {
     const templateBytes =
       fs.readFileSync(templatePath);
 
-    console.log(
-      'Template loaded:',
-      templateBytes.length,
-      'bytes',
-    );
-
+    
     const pdfDoc =
       await PDFDocument.create();
-
-    console.log(
-      'PDF document created',
-    );
-
-    console.log(
-      'Embedding PNG...',
-    );
 
     const image =
       await pdfDoc.embedPng(
         templateBytes,
       );
 
-    console.log(
-      'PNG embedded successfully',
-    );
-
+    
     const page =
       pdfDoc.addPage([
         image.width,
@@ -136,17 +112,9 @@ export class PdfService {
     const pdfBytes =
       await pdfDoc.save();
 
-    console.log(
-      'PDF saved:',
-      pdfBytes.length,
-      'bytes',
-    );
-
+    
     if (!fs.existsSync('temp')) {
       fs.mkdirSync('temp');
-      console.log(
-        'Created temp directory',
-      );
     }
 
     const fileName =
@@ -162,22 +130,12 @@ export class PdfService {
       pdfBytes,
     );
 
-    console.log(
-      'Output path:',
-      outputPath,
-    );
-
     const verifyPdf =
       await PDFDocument.load(
         pdfBytes,
       );
 
-    console.log(
-      'PDF verified successfully',
-      verifyPdf.getPageCount(),
-      'page(s)',
-    );
-
+    
     return outputPath;
   }
 }
