@@ -5,42 +5,47 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { Role, UserStatus } from '@prisma/client';
+
+interface AuthenticatedUser {
+  sub: number;
+  email: string;
+  role: Role;
+  status: UserStatus;
+}
 
 @Injectable()
 export class RolesGuard implements CanActivate {
-  constructor(private reflector: Reflector) { }
+  constructor(private reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
-    // 🟢 Get roles required from decorator
-    const requiredRoles = this.reflector.get<string[]>(
+    // Get roles required from decorator
+    const requiredRoles = this.reflector.getAllAndOverride<Role[]>(
       'roles',
-      context.getHandler(),
+      [
+        context.getHandler(),
+        context.getClass(),
+      ],
     );
 
-    // 🟢 If no roles specified → allow access
+    // No roles specified → allow access
     if (!requiredRoles || requiredRoles.length === 0) {
       return true;
     }
 
     const request = context.switchToHttp().getRequest();
-    const user = request.user;
-    // 🔥 ADD THESE LOGS HERE
-    console.log('AUTH HEADER:', request.headers.authorization);
+    const user = request.user as AuthenticatedUser;
 
-    console.log('USER:', user);
-
-    console.log('REQUIRED ROLES:', requiredRoles);
-
-    // 🔴 No user → something wrong with auth
+    // User should already be authenticated by JwtAuthGuard
     if (!user) {
       throw new ForbiddenException('Access denied');
     }
 
-    // 🟢 Check if user role is allowed
-    const hasRole = requiredRoles.includes(user.role);
-
-    if (!hasRole) {
-      throw new ForbiddenException('Insufficient permissions');
+    // Check whether the user's role is allowed
+    if (!requiredRoles.includes(user.role)) {
+      throw new ForbiddenException(
+        'Insufficient permissions',
+      );
     }
 
     return true;

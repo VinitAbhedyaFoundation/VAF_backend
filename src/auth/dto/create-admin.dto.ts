@@ -13,8 +13,9 @@ export class CreateAdminDto {
   @ApiProperty({ example: "Admin Name" })
   @IsString()
   @IsNotEmpty()
+  @MaxLength(100)
   @Transform(({ value }) => value.trim())
-  @Matches(/^[a-zA-Z\s]+$/, {
+  @Matches(/^[a-zA-Z\s'-]+$/, {
     message: "Name must contain only letters",
   })
   name!: string;
@@ -22,6 +23,7 @@ export class CreateAdminDto {
   @ApiProperty({ example: "admin@gmail.com" })
   @IsEmail()
   @IsNotEmpty()
+  @MaxLength(255)
   @Transform(({ value }) => value.toLowerCase().trim())
   email!: string;
 

@@ -3,11 +3,15 @@ import 'tsconfig-paths/register';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  //enable graceful shutdowns for the application
+  app.enableShutdownHooks();
 
   // ✅ Allowed Frontend Origins
   const allowedOrigins = [
@@ -87,7 +91,11 @@ async function bootstrap() {
 
   await app.listen(PORT);
 
-  console.log(`🚀 Server running on port ${PORT}`);
+const logger = new Logger('Bootstrap');
+
+logger.log(
+  `Server running on port ${PORT}`,
+);
 }
 
 bootstrap();

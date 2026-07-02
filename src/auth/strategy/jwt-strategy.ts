@@ -24,16 +24,20 @@ export class JwtStrategy extends PassportStrategy(
     private configService: ConfigService,
     private databaseService: DatabaseService,
   ) {
+    const secret =
+      configService.get<string>('JWT_SECRET_KEY');
+
+    if (!secret) {
+      throw new Error(
+        'JWT_SECRET_KEY is missing',
+      );
+    }
+
     super({
       jwtFromRequest:
         ExtractJwt.fromAuthHeaderAsBearerToken(),
-
       ignoreExpiration: false,
-
-      secretOrKey:
-        configService.get<string>(
-          'JWT_SECRET_KEY',
-        ) || 'supersecret',
+      secretOrKey: secret,
     });
   }
 
@@ -43,27 +47,33 @@ export class JwtStrategy extends PassportStrategy(
     role: Role;
   }) {
     const user =
-      await this.databaseService.user.findUnique({
-        where: {
-          id: payload.sub,
-        },
-      });
+await this.databaseService.user.findUnique({
+    where:{
+        id:payload.sub
+    },
+    select:{
+        id:true,
+        email:true,
+        role:true,
+        status:true,
+    }
+});
 
     if (!user) {
       throw new UnauthorizedException(
-        'User not found',
+        'Unauthorized access',
       );
     }
 
     if (user.status === UserStatus.Pending) {
       throw new UnauthorizedException(
-        'Account not approved yet',
+        'Unauthorized access',
       );
     }
 
     if (user.status === UserStatus.Suspended) {
       throw new UnauthorizedException(
-        'Account suspended',
+        'Unauthorized access',
       );
     }
 
