@@ -13,8 +13,12 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     info: any,
     context: ExecutionContext,
   ) {
-    if (err || !user) {
-      throw err || new UnauthorizedException('Invalid or expired token');
+    if (err) {
+      throw err;
+    }
+
+    if (!user) {
+      throw new UnauthorizedException();
     }
 
     return user;

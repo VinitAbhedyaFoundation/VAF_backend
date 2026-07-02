@@ -1,5 +1,9 @@
+// (with a note to revisit createUserId() later if needed) 
+// for polishing this file
+
 import {
   ConflictException,
+  Logger,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
@@ -16,8 +20,13 @@ import { LoginAdminDto } from './dto/login-admin.dto';
 import { JwtService } from '@nestjs/jwt';
 import { CreateAdminDto } from './dto/create-admin.dto';
 
+const DUMMY_HASH =
+  '$2b$12$C6UzMDM.H6dfI/f/IKcEeO3kR4hV9jWQ6QcgO5Kb/6VQwWi4KFOGa';
+
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private databaseService: DatabaseService,
     private configService: ConfigService,
@@ -26,7 +35,18 @@ export class AuthService {
 
   // 🔥 CREATE USER
   async createUser(createUserData: CreateUserDto) {
-    const { email, password, gender, birthDate, ...rest } = createUserData;
+    const {
+      email: rawEmail,
+      password,
+      gender,
+      birthDate,
+      name,
+      phone,
+      address,
+    } = createUserData;
+
+    const email = rawEmail.toLowerCase().trim();
+
 
     try {
       if (!gender) {
@@ -41,27 +61,46 @@ export class AuthService {
         throw new ConflictException('User already exists');
       }
 
-      const hashedPassword = await bcrypt.hash(password, 10);
+      const hashedPassword = await bcrypt.hash(password, 12);
       const userId = await this.createUserId(gender);
 
       // ✅ Build data object explicitly (NO spread tricks)
+      const parsedBirthDate =
+        birthDate
+          ? new Date(birthDate)
+          : undefined;
+
       const data: Prisma.UserCreateInput = {
+        name,
         email,
+        phone,
+        address,
         password: hashedPassword,
         gender,
-        ...rest,
         role: Role.User,
         ploggerId: userId,
-        birthDate: new Date(birthDate), // ✅ ALWAYS defined
-        status: UserStatus.Pending, // ✅ Set default status
+        birthDate: parsedBirthDate,
+        status: UserStatus.Pending,
       };
 
-      const user = await this.databaseService.user.create({ data });
+      const user = await this.databaseService.user.create({
+        data,
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          ploggerId: true,
+        },
+      });
 
       return { message: 'User Created Successfully', userId, user };
 
     } catch (error: unknown) {
-      console.error('CREATE USER ERROR:', error);
+      this.logger.error(
+        error instanceof Error
+          ? error.stack
+          : String(error),
+      );
 
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -70,31 +109,31 @@ export class AuthService {
         throw new ConflictException('User already exists');
       }
 
-      if (error instanceof Error) {
-        throw new InternalServerErrorException(error.message);
-      }
-
       throw new InternalServerErrorException('Something went wrong');
     }
   }
 
+
   // 🔥 LOGIN USER
   async loginUser(loginUserData: LoginUserDto) {
-    const { email, password } = loginUserData;
+    const email = loginUserData.email
+      .toLowerCase()
+      .trim();
+
+    const { password } = loginUserData;
 
     try {
-      console.log("🔵 LOGIN ATTEMPT:", email);
-
+      // console.log("🟡 USER Login:", user);
       const user = await this.databaseService.user.findUnique({
         where: { email },
       });
 
-      console.log("🟡 USER FOUND:", user);
+      // console.log("🟡 USER FOUND:", user);
 
       if (!user) {
-        console.log("❌ USER NOT FOUND");
+        // console.log("❌ USER NOT FOUND");
         throw new UnauthorizedException(
-          'User does not exist',
+          'Invalid credentials',
         );
       }
 
@@ -110,16 +149,19 @@ export class AuthService {
         );
       }
 
-      const isPasswordValid = await bcrypt.compare(password, user.password);
+      const isPasswordValid = await bcrypt.compare(
+  password,
+  user?.password ?? DUMMY_HASH,
+);
 
-      console.log("🟢 PASSWORD MATCH:", isPasswordValid);
+      // console.log("🟢 PASSWORD MATCH:", isPasswordValid);
 
       if (!isPasswordValid) {
-        console.log("❌ WRONG PASSWORD");
-        throw new UnauthorizedException('Wrong password');
+        // console.log("❌ WRONG PASSWORD");
+        throw new UnauthorizedException('Invalid credentials');
       }
 
-      console.log("✅ LOGIN SUCCESS");
+      // // console.log("✅ LOGIN SUCCESS");
 
       const token = await this.generateUserToken({
         email: user?.email,
@@ -141,15 +183,19 @@ export class AuthService {
       };
 
     } catch (error: unknown) {
-      console.error('LOGIN ERROR:', error);
+      this.logger.error(
+        error instanceof Error
+          ? error.stack
+          : String(error),
+      );
 
-      if (error instanceof UnauthorizedException) throw error;
-
-      if (error instanceof Error) {
-        throw new InternalServerErrorException(error.message);
+      if (error instanceof UnauthorizedException) {
+        throw error;
       }
 
-      throw new InternalServerErrorException();
+      throw new InternalServerErrorException(
+        'Login failed',
+      );
     }
   }
 
@@ -159,7 +205,7 @@ export class AuthService {
       if (updateAuthData.password) {
         updateAuthData.password = await bcrypt.hash(
           updateAuthData.password,
-          10,
+          12,
         );
       }
 
@@ -177,7 +223,6 @@ export class AuthService {
       return { message: 'User Updated Successfully', user };
 
     } catch (error: unknown) {
-      console.error('UPDATE ERROR:', error);
 
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -187,7 +232,10 @@ export class AuthService {
       }
 
       if (error instanceof Error) {
-        throw new InternalServerErrorException(error.message);
+
+        throw new InternalServerErrorException(
+          'Operation failed',
+        );
       }
 
       throw new InternalServerErrorException();
@@ -196,7 +244,11 @@ export class AuthService {
 
   // 🔥 ADMIN LOGIN
   async loginAdmin(loginAdminData: LoginAdminDto) {
-    const { email, password } = loginAdminData;
+    const email = loginAdminData.email
+  .toLowerCase()
+  .trim();
+
+const { password } = loginAdminData;
 
     try {
       const admin = await this.databaseService.user.findFirst({
@@ -229,87 +281,100 @@ export class AuthService {
       return { message: 'Login Successful', token };
 
     } catch (error: unknown) {
-      console.error('ADMIN LOGIN ERROR:', error);
+      this.logger.error(
+        error instanceof Error
+          ? error.stack
+          : String(error),
+      );
 
       if (error instanceof UnauthorizedException) throw error;
 
       if (error instanceof Error) {
-        throw new InternalServerErrorException(error.message);
+        this.logger.error(
+          error instanceof Error
+            ? error.stack
+            : String(error),
+        );
+
+        throw new InternalServerErrorException(
+          'Operation failed',
+        );
       }
 
       throw new InternalServerErrorException();
     }
   }
 
-  
+
   // 🔥 CREATE ADMIN
-async createAdmin(createAdminData: CreateAdminDto) {
+  async createAdmin(createAdminData: CreateAdminDto) {
 
-  const {
-    email,
-    password,
-    name,
-  } = createAdminData;
+    const email = createAdminData.email
+  .toLowerCase()
+  .trim();
 
-  try {
+const { password, name } = createAdminData;
 
-    const existingAdmin =
-      await this.databaseService.user.findUnique({
-        where: { email },
+    try {
+
+      const existingAdmin =
+        await this.databaseService.user.findUnique({
+          where: { email },
+        });
+
+      if (existingAdmin) {
+        throw new ConflictException(
+          'Admin already exists',
+        );
+      }
+
+      const hashedPassword =
+        await bcrypt.hash(password, 12);
+
+      await this.databaseService.user.create({
+        data: {
+          name,
+          email,
+          password: hashedPassword,
+
+          role: Role.Admin,
+          status: UserStatus.Approved,
+
+          ploggerId: `ADMIN_${Date.now()}`,
+        },
       });
 
-    if (existingAdmin) {
-      throw new ConflictException(
-        'Admin already exists',
+      return {
+        message:
+          'Admin Created Successfully',
+      };
+
+    } catch (error: unknown) {
+
+      this.logger.error(
+        error instanceof Error
+          ? error.stack
+          : String(error),
       );
+
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException(
+          'Email already exists',
+        );
+      }
+
+      if (error instanceof Error) {
+        throw new InternalServerErrorException(
+          'Operation failed',
+        );
+      }
+
+      throw new InternalServerErrorException();
     }
-
-    const hashedPassword =
-      await bcrypt.hash(password, 10);
-
-    await this.databaseService.user.create({
-      data: {
-        name,
-        email,
-        password: hashedPassword,
-
-        role: Role.Admin,
-        status: UserStatus.Approved,
-
-        ploggerId: `ADMIN_${Date.now()}`,
-      },
-    });
-
-    return {
-      message:
-        'Admin Created Successfully',
-    };
-
-  } catch (error: unknown) {
-
-    console.error(
-      'CREATE ADMIN ERROR:',
-      error,
-    );
-
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === 'P2002'
-    ) {
-      throw new ConflictException(
-        'Email already exists',
-      );
-    }
-
-    if (error instanceof Error) {
-      throw new InternalServerErrorException(
-        error.message,
-      );
-    }
-
-    throw new InternalServerErrorException();
   }
-}
 
   // 🔥 GET USERS
   async getAllUsers() {
@@ -331,12 +396,24 @@ async createAdmin(createAdminData: CreateAdminDto) {
       return { message: 'Users Found', users };
 
     } catch (error: unknown) {
-      console.error('GET USERS ERROR:', error);
+      this.logger.error(
+        error instanceof Error
+          ? error.stack
+          : String(error),
+      );
 
       if (error instanceof NotFoundException) throw error;
 
       if (error instanceof Error) {
-        throw new InternalServerErrorException(error.message);
+        this.logger.error(
+          error instanceof Error
+            ? error.stack
+            : String(error),
+        );
+
+        throw new InternalServerErrorException(
+          'Operation failed',
+        );
       }
 
       throw new InternalServerErrorException();
@@ -410,12 +487,24 @@ async createAdmin(createAdminData: CreateAdminDto) {
       return user;
 
     } catch (error: unknown) {
-      console.error('GET ME ERROR:', error);
+      this.logger.error(
+        error instanceof Error
+          ? error.stack
+          : String(error),
+      );
 
       if (error instanceof NotFoundException) throw error;
 
       if (error instanceof Error) {
-        throw new InternalServerErrorException(error.message);
+        this.logger.error(
+          error instanceof Error
+            ? error.stack
+            : String(error),
+        );
+
+        throw new InternalServerErrorException(
+          'Operation failed',
+        );
       }
 
       throw new InternalServerErrorException();

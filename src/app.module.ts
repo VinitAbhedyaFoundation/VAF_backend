@@ -28,8 +28,8 @@ import { CloudinaryModule } from './cloudinary/cloudinary.module';
     // ✅ Rate Limiting
     ThrottlerModule.forRoot([
       {
-        ttl: 60,
-        limit: 10,
+        ttl: 60000, // 1 minute
+        limit: 100, // 100 requests per minute
       },
     ]),
 
@@ -37,12 +37,20 @@ import { CloudinaryModule } from './cloudinary/cloudinary.module';
     JwtModule.registerAsync({
       global: true,
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        secret: config.get<string>('JWT_SECRET') || 'supersecret',
-        signOptions: {
-          expiresIn: '1d',
-        },
-      }),
+      useFactory: (config: ConfigService) => {
+        const secret = config.get<string>('JWT_SECRET_KEY');
+
+        if (!secret) {
+          throw new Error('JWT_SECRET_KEY is missing');
+        }
+
+        return {
+          secret,
+          signOptions: {
+            expiresIn: '1d',
+          },
+        };
+      },
     }),
 
     // ✅ Core modules
@@ -69,4 +77,4 @@ import { CloudinaryModule } from './cloudinary/cloudinary.module';
     },
   ],
 })
-export class AppModule {}
+export class AppModule { }
