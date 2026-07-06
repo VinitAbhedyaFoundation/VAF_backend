@@ -2,18 +2,24 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-
 import { ConfigService } from '@nestjs/config';
-
 import { PassportStrategy } from '@nestjs/passport';
-
 import {
   ExtractJwt,
   Strategy,
 } from 'passport-jwt';
+import {
+  Role,
+  UserStatus,
+} from '@prisma/client';
 
 import { DatabaseService } from '../../database/database.service';
-import { UserStatus, Role } from '@prisma/client';
+
+interface JwtPayload {
+  sub: number;
+  email: string;
+  role: Role;
+}
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(
@@ -21,11 +27,12 @@ export class JwtStrategy extends PassportStrategy(
   'jwt',
 ) {
   constructor(
-    private configService: ConfigService,
-    private databaseService: DatabaseService,
+    private readonly configService: ConfigService,
+    private readonly databaseService: DatabaseService,
   ) {
-    const secret =
-      configService.get<string>('JWT_SECRET_KEY');
+    const secret = configService.get<string>(
+      'JWT_SECRET_KEY',
+    );
 
     if (!secret) {
       throw new Error(
@@ -41,23 +48,19 @@ export class JwtStrategy extends PassportStrategy(
     });
   }
 
-  async validate(payload: {
-    sub: number;
-    email: string;
-    role: Role;
-  }) {
+  async validate(payload: JwtPayload) {
     const user =
-await this.databaseService.user.findUnique({
-    where:{
-        id:payload.sub
-    },
-    select:{
-        id:true,
-        email:true,
-        role:true,
-        status:true,
-    }
-});
+      await this.databaseService.user.findUnique({
+        where: {
+          id: payload.sub,
+        },
+        select: {
+          id: true,
+          email: true,
+          role: true,
+          status: true,
+        },
+      });
 
     if (!user) {
       throw new UnauthorizedException(
@@ -65,13 +68,10 @@ await this.databaseService.user.findUnique({
       );
     }
 
-    if (user.status === UserStatus.Pending) {
-      throw new UnauthorizedException(
-        'Unauthorized access',
-      );
-    }
-
-    if (user.status === UserStatus.Suspended) {
+    if (
+      user.status === UserStatus.Pending ||
+      user.status === UserStatus.Suspended
+    ) {
       throw new UnauthorizedException(
         'Unauthorized access',
       );

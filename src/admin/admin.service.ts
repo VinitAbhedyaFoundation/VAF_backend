@@ -1,4 +1,8 @@
-import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { UserService } from '../user/user.service';
 import { DriveService } from '../drive/drive.service';
 
@@ -18,23 +22,35 @@ export class AdminService {
 
   async getDashboardStats(): Promise<DashboardStats> {
     try {
-      // 🚀 Fetch in parallel (faster)
+      // Fetch users and drives in parallel
       const [users, drives] = await Promise.all([
         this.userService.getAllUsers(),
-        this.driveService.findAllDrives(1, 1000), // temporary large fetch
+        this.driveService.findAllDrives(1, 1000), // Temporary until count APIs are available
       ]);
 
-      // ✅ Enforce array shape (minimal fallback)
-      const safeUsers = Array.isArray(users) ? users : [];
-      const safeDrives = Array.isArray(drives) ? drives : [];
+      const totalVolunteers = Array.isArray(users)
+        ? users.length
+        : 0;
+
+      const totalDrives = Array.isArray(drives)
+        ? drives.length
+        : 0;
+
+      this.logger.log(
+        `Dashboard stats fetched successfully | Volunteers: ${totalVolunteers}, Drives: ${totalDrives}`,
+      );
 
       return {
-        totalVolunteers: safeUsers.length,
-        totalDrives: safeDrives.length,
+        totalVolunteers,
+        totalDrives,
       };
-
     } catch (error) {
-      this.logger.error('Failed to fetch dashboard stats', error);
+      this.logger.error(
+        'Failed to fetch dashboard statistics',
+        error instanceof Error
+          ? error.stack
+          : String(error),
+      );
 
       throw new InternalServerErrorException(
         'Unable to fetch dashboard statistics',

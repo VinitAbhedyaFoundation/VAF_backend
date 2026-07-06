@@ -1,19 +1,22 @@
+const TEMPLATE_PATHS: Record<string, string> = {
+  blood: 'assets/certificate-templates/blood-donation-template.png',
+  cloth: 'assets/certificate-templates/cloth-donation-template.png',
+  tree: 'assets/certificate-templates/tree-plantation-template.png',
+};
+
+const DEFAULT_TEMPLATE =
+  'assets/certificate-templates/cloth-donation-template.png';
+
 export function getTemplatePath(
   driveTitle: string,
-) {
+): string {
   const title = driveTitle.toLowerCase();
 
-  if (title.includes('blood')) {
-    return 'assets/certificate-templates/blood-donation-template.png';
+  for (const [keyword, template] of Object.entries(TEMPLATE_PATHS)) {
+    if (title.includes(keyword)) {
+      return template;
+    }
   }
 
-  if (title.includes('cloth')) {
-    return 'assets/certificate-templates/cloth-donation-template.png';
-  }
-
-  if (title.includes('tree')) {
-    return 'assets/certificate-templates/tree-plantation-template.png';
-  }
-
-  return 'assets/certificate-templates/cloth-donation-template.png';
+  return DEFAULT_TEMPLATE;
 }

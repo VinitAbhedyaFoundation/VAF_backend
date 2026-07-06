@@ -1,15 +1,24 @@
 import { Module } from '@nestjs/common';
+
 import { DashboardController } from './dashboard.controller';
 import { DashboardService } from './dashboard.service';
-import { AuthModule } from '../auth/auth.module';        // ✅ ADD
-import { DatabaseModule } from '../database/database.module'; // (if using prisma)
+
+import { AuthModule } from '../auth/auth.module';
+import { DatabaseModule } from '../database/database.module';
 
 @Module({
   imports: [
-    AuthModule,        // ✅ THIS FIXES jwt-user error
-    DatabaseModule,    // ✅ needed for Prisma
+    AuthModule,
+    DatabaseModule,
   ],
-  controllers: [DashboardController],
-  providers: [DashboardService],
+  controllers: [
+    DashboardController,
+  ],
+  providers: [
+    DashboardService,
+  ],
+  exports: [
+    DashboardService,
+  ],
 })
 export class DashboardModule {}

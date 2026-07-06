@@ -1,35 +1,48 @@
 import {
+  Body,
   Controller,
   Get,
-  Post,
-  Patch,
-  Body,
   Param,
   ParseIntPipe,
-  UseGuards,
+  Patch,
+  Post,
   Req,
+  UseGuards,
 } from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 
 import { AttendanceService } from './attendance.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth-guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 
+@ApiTags('Attendance')
+@ApiBearerAuth()
 @Controller('attendance')
 @UseGuards(JwtAuthGuard)
 export class AttendanceController {
   constructor(
     private readonly service: AttendanceService,
-  ) { }
+  ) {}
 
-  // 🔹 Get all attendance records
+  // Get all attendance records
   @Get('all')
+  @ApiOperation({
+    summary: 'Get all attendance records',
+  })
   getAll() {
     return this.service.getAll();
   }
 
-  // 🔹 Join a drive
+  // Join a drive
   @Post('join')
+  @ApiOperation({
+    summary: 'Join a drive',
+  })
   joinDrive(
     @Req() req: any,
     @Body() body: { driveId: number },
@@ -40,8 +53,11 @@ export class AttendanceController {
     );
   }
 
-  // 🔹 Mark attendance for a drive
+  // Mark attendance
   @Post('mark')
+  @ApiOperation({
+    summary: 'Mark attendance for a drive',
+  })
   markAttendance(
     @Req() req: any,
     @Body() body: { driveId: number },
@@ -52,10 +68,13 @@ export class AttendanceController {
     );
   }
 
-  // 🔹 Approve attendance (Admin only)
+  // Approve attendance (Admin/SuperAdmin)
   @Patch('approve/:id')
-  @UseGuards(JwtAuthGuard, RolesGuard,)
+  @UseGuards(RolesGuard)
   @Roles('Admin', 'SuperAdmin')
+  @ApiOperation({
+    summary: 'Approve attendance',
+  })
   approve(
     @Param('id', ParseIntPipe)
     id: number,
@@ -63,13 +82,16 @@ export class AttendanceController {
     return this.service.approveAttendance(id);
   }
 
-  // 🔹 Get logged-in user's attendance
+  // Logged-in user's attendance
   @Get('my')
+  @ApiOperation({
+    summary: 'Get logged-in user attendance',
+  })
   getMyAttendance(
     @Req() req: any,
   ) {
     return this.service.getMyAttendance(
-      req.user?.sub,
+      req.user.sub,
     );
   }
 }

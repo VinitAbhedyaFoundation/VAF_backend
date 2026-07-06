@@ -1,14 +1,11 @@
 import {
-  Injectable,
   CanActivate,
   ExecutionContext,
   ForbiddenException,
+  Injectable,
 } from '@nestjs/common';
-
 import { Reflector } from '@nestjs/core';
-
 import { Role } from '@prisma/client';
-
 import { Request } from 'express';
 
 interface AuthUser {
@@ -17,24 +14,31 @@ interface AuthUser {
   role: Role;
 }
 
+const ROLE_HIERARCHY: Record<Role, number> = {
+  User: 1,
+  Admin: 2,
+  SuperAdmin: 3,
+};
+
 @Injectable()
 export class RolesGuard
   implements CanActivate
 {
   constructor(
-    private reflector: Reflector,
+    private readonly reflector: Reflector,
   ) {}
 
   canActivate(
     context: ExecutionContext,
   ): boolean {
     const requiredRoles =
-      this.reflector.getAllAndOverride<
-        Role[]
-      >('roles', [
-        context.getHandler(),
-        context.getClass(),
-      ]);
+      this.reflector.getAllAndOverride<Role[]>(
+        'roles',
+        [
+          context.getHandler(),
+          context.getClass(),
+        ],
+      );
 
     if (
       !requiredRoles ||
@@ -51,19 +55,10 @@ export class RolesGuard
     const user =
       request.user as AuthUser;
 
-    const roleHierarchy: Record<
-      Role,
-      number
-    > = {
-      User: 1,
-      Admin: 2,
-      SuperAdmin: 3,
-    };
-
     if (
       !user ||
       !user.role ||
-      !(user.role in roleHierarchy)
+      !(user.role in ROLE_HIERARCHY)
     ) {
       throw new ForbiddenException(
         'Invalid user or role',
@@ -71,16 +66,12 @@ export class RolesGuard
     }
 
     const userLevel =
-      roleHierarchy[user.role];
-
-    const requiredLevels =
-      requiredRoles.map(
-        (role) => roleHierarchy[role],
-      );
+      ROLE_HIERARCHY[user.role];
 
     const hasAccess =
-      requiredLevels.some(
-        (level) => userLevel >= level,
+      requiredRoles.some(
+        (role) =>
+          userLevel >= ROLE_HIERARCHY[role],
       );
 
     if (!hasAccess) {

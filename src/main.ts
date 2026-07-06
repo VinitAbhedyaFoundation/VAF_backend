@@ -2,30 +2,29 @@ import 'tsconfig-paths/register';
 
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { ValidationPipe } from '@nestjs/common';
-import { Logger } from '@nestjs/common';
+import { ValidationPipe, Logger } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  //enable graceful shutdowns for the application
+  // Enable graceful shutdown
   app.enableShutdownHooks();
 
-  // ✅ Allowed Frontend Origins
+  // Allowed Frontend Origins
   const allowedOrigins = [
     'http://localhost:8080',
     'http://localhost:5173',
     'https://vaf-frontend.vercel.app',
-    'https://vinitabbedyafoundation.com',
-    'https://www.vinitabhedyafoundation.com'
+    'https://vinitabhedyafoundation.com',
+    'https://www.vinitabhedyafoundation.com',
   ];
 
-  // ✅ CORS
+  // CORS
   app.enableCors({
     origin: (origin, callback) => {
-      // allow mobile apps / postman / server requests
+      // Allow Postman, mobile apps, server-to-server requests
       if (!origin) {
         return callback(null, true);
       }
@@ -57,13 +56,13 @@ async function bootstrap() {
     ],
   });
 
-  // ✅ Security Headers
+  // Security Headers
   app.use(helmet());
 
-  // ✅ Global API Prefix
+  // Global API Prefix
   app.setGlobalPrefix('api');
 
-  // ✅ Validation
+  // Validation
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -72,30 +71,37 @@ async function bootstrap() {
     }),
   );
 
-  // ✅ Swagger (only for development)
+  // Swagger (Development Only)
   if (process.env.NODE_ENV !== 'production') {
     const config = new DocumentBuilder()
-      .setTitle('Attendance-Marking REST API')
-      .setDescription('Volunteer management API')
+      .setTitle('Attendance API')
+      .setDescription('Volunteer Management REST API')
       .setVersion('1.0')
       .addBearerAuth()
       .build();
 
-    const document = SwaggerModule.createDocument(app, config);
+    const document = SwaggerModule.createDocument(
+      app,
+      config,
+    );
 
-    SwaggerModule.setup('swagger', app, document);
+    SwaggerModule.setup(
+      'swagger',
+      app,
+      document,
+    );
   }
 
-  // ✅ Start Server
+  // Start Server
   const PORT = process.env.PORT || 3000;
 
   await app.listen(PORT);
 
-const logger = new Logger('Bootstrap');
+  const logger = new Logger('Bootstrap');
 
-logger.log(
-  `Server running on port ${PORT}`,
-);
+  logger.log(
+    `Server running on port ${PORT}`,
+  );
 }
 
 bootstrap();
