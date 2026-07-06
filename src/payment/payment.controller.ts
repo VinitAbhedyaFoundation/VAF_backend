@@ -3,9 +3,15 @@ import {
   Controller,
   Post,
 } from '@nestjs/common';
+import {
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 
 import { PaymentService } from './payment.service';
+import { CreatePaymentDto } from './dto/create-payment.dto';
 
+@ApiTags('Payment')
 @Controller('payment')
 export class PaymentController {
   constructor(
@@ -13,14 +19,15 @@ export class PaymentController {
   ) {}
 
   @Post('checkout')
+  @ApiOperation({
+    summary: 'Create Stripe checkout session',
+  })
   async checkout(
-    @Body() body: any,
+    @Body()
+    body: CreatePaymentDto,
   ) {
-
-    console.log(body);
-
     return this.paymentService.createCheckoutSession(
-      Number(body.amount),
+      body.amount,
     );
   }
 }

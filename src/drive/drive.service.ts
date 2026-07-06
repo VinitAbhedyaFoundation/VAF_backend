@@ -18,14 +18,14 @@ export class DriveService {
   private readonly logger = new Logger(DriveService.name);
 
   constructor(
-    private databaseService: DatabaseService,
-  ) { }
+  private readonly databaseService: DatabaseService,
+) {}
 
   // =========================
   // 🔐 SECURE TOKEN
   // =========================
 
-  generateSecureToken(): string {
+private generateSecureToken(): string {
     return randomBytes(16).toString('hex');
   }
 
@@ -105,9 +105,10 @@ export class DriveService {
         throw error;
       }
 
-      this.logger.error(
-        'Create drive failed',
-      );
+     this.logger.error(
+  'Create drive failed',
+  error instanceof Error ? error.stack : String(error),
+);
 
       throw new InternalServerErrorException(
         'Failed to create drive',
@@ -203,8 +204,11 @@ export class DriveService {
       }));
     } catch (error) {
       this.logger.error(
-        'Fetch drives failed',
-      );
+  'Fetch drives failed',
+  error instanceof Error
+    ? error.stack
+    : String(error),
+);
 
       throw new InternalServerErrorException(
         'Failed to fetch drives',
@@ -242,8 +246,11 @@ export class DriveService {
       );
     } catch (error) {
       this.logger.error(
-        'Fetch locations failed',
-      );
+  'Fetch locations failed',
+  error instanceof Error
+    ? error.stack
+    : String(error),
+);
 
       throw new InternalServerErrorException(
         'Failed to fetch locations',
@@ -301,8 +308,7 @@ export class DriveService {
         totalHours: drive.totalHours,
         completed: drive.completed,
         location:
-          drive.driveLocation?.location ||
-          null,
+drive.driveLocation?.location ?? null,
       };
     } catch (error) {
       if (
@@ -311,9 +317,12 @@ export class DriveService {
         throw error;
       }
 
-      this.logger.error(
-        'Fetch drive failed',
-      );
+this.logger.error(
+  'Fetch drive failed',
+  error instanceof Error
+    ? error.stack
+    : String(error),
+);
 
       throw new InternalServerErrorException(
         'Failed to fetch drive',
@@ -413,9 +422,12 @@ export class DriveService {
         throw error;
       }
 
-      this.logger.error(
-        'Update drive failed',
-      );
+this.logger.error(
+  'Update drive failed',
+  error instanceof Error
+    ? error.stack
+    : String(error),
+);
 
       throw new InternalServerErrorException(
         'Failed to update drive',
@@ -498,7 +510,7 @@ export class DriveService {
           volunteerCount,
           wasteKg,
           hours,
-          location: drive.driveLocation?.location || null,
+        location: drive.driveLocation?.location ?? null,
 
           status:
             new Date(drive.date) < today
@@ -515,8 +527,11 @@ export class DriveService {
       }
 
       this.logger.error(
-        'Fetch by date failed',
-      );
+  'Fetch by date failed',
+  error instanceof Error
+    ? error.stack
+    : String(error),
+);
 
       throw new InternalServerErrorException(
         'Failed to fetch drives',
@@ -557,8 +572,11 @@ export class DriveService {
       }));
     } catch (error) {
       this.logger.error(
-        'Fetch upcoming drives failed',
-      );
+  'Fetch upcoming drives failed',
+  error instanceof Error
+    ? error.stack
+    : String(error),
+);
 
       throw new InternalServerErrorException(
         'Failed to fetch upcoming drives',

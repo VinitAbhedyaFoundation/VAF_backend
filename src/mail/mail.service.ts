@@ -1,29 +1,60 @@
-import * as nodemailer from "nodemailer";
-import { Injectable, OnModuleInit } from "@nestjs/common";
+import {
+  Injectable,
+  Logger,
+  OnModuleInit,
+} from '@nestjs/common';
+import * as nodemailer from 'nodemailer';
 
 @Injectable()
 export class MailService implements OnModuleInit {
-  private transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
-  });
+  private readonly logger = new Logger(
+    MailService.name,
+  );
 
-  // 🔍 Verify connection on startup
-  async onModuleInit() {
+  private readonly transporter =
+    nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+
+  async onModuleInit(): Promise<void> {
+    if (
+      !process.env.EMAIL_USER ||
+      !process.env.EMAIL_PASS
+    ) {
+      this.logger.warn(
+        'Email credentials are not configured.',
+      );
+      return;
+    }
+
     try {
       await this.transporter.verify();
-      console.log("✅ Mail server is ready");
-    } catch (err) {
-      console.error("❌ Mail server error:", err);
+
+      this.logger.log(
+        'Mail server is ready.',
+      );
+    } catch (error) {
+      this.logger.error(
+        'Mail server verification failed.',
+        error instanceof Error
+          ? error.stack
+          : String(error),
+      );
     }
   }
 
-  // 📧 Send bulk email
-  async sendBulkMail(to: string[], subject: string, content: string) {
-    if (!to.length) return;
+  async sendBulkMail(
+    to: string[],
+    subject: string,
+    content: string,
+  ): Promise<void> {
+    if (!to.length) {
+      return;
+    }
 
     try {
       await this.transporter.sendMail({
@@ -40,10 +71,18 @@ export class MailService implements OnModuleInit {
         `,
       });
 
-      console.log(`📨 Email sent to ${to.length} users`);
-    } catch (err) {
-      console.error("❌ Mail send error:", err);
-      throw err;
+      this.logger.log(
+        `Email sent successfully to ${to.length} recipient(s).`,
+      );
+    } catch (error) {
+      this.logger.error(
+        'Failed to send bulk email.',
+        error instanceof Error
+          ? error.stack
+          : String(error),
+      );
+
+      throw error;
     }
   }
 }

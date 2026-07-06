@@ -1,35 +1,50 @@
 import { ApiProperty } from '@nestjs/swagger';
-
 import { Type } from 'class-transformer';
-
 import {
   IsDate,
   IsNotEmpty,
   IsNumber,
-  IsOptional,
+  IsPositive,
   IsString,
+  MaxLength,
 } from 'class-validator';
 
 export class CreateDriveDto {
-  @ApiProperty()
+  @ApiProperty({
+    example: 'Tree Plantation Drive',
+    maxLength: 100,
+  })
   @IsString()
   @IsNotEmpty()
+  @MaxLength(100)
   title!: string;
 
-  @ApiProperty()
+  @ApiProperty({
+    example: 'Pune, Maharashtra',
+    maxLength: 255,
+  })
   @IsString()
   @IsNotEmpty()
+  @MaxLength(255)
   location!: string;
 
-  @ApiProperty()
-  @IsDate()
+  @ApiProperty({
+    example: '2026-07-10T08:00:00.000Z',
+    type: String,
+    format: 'date-time',
+  })
   @Type(() => Date)
+  @IsDate()
   @IsNotEmpty()
   date!: Date;
 
-  @ApiProperty()
+  @ApiProperty({
+    example: 4,
+    description: 'Total volunteering hours',
+  })
+  @Type(() => Number)
   @IsNumber()
+  @IsPositive()
   @IsNotEmpty()
   totalHours!: number;
-
 }

@@ -1,110 +1,158 @@
-import { Controller, Post, Body, Patch, Param, UseGuards, Get } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseIntPipe,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
+import { AuthGuard } from '@nestjs/passport';
+import { Role } from '@prisma/client';
+
 import { AuthService } from './auth.service';
 import { CreateUserDto } from '../user/dto/create-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
 import { LoginAdminDto } from './dto/login-admin.dto';
 import { CreateAdminDto } from './dto/create-admin.dto';
-import { AuthGuard } from '@nestjs/passport';
-import { UserId } from '../common/decorator/user-id.decorator';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+
+import { UserId } from '../common/decorator/user-id.decorator';
 import { Roles } from '../common/decorator/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
-import { Role } from '@prisma/client';
 
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+  ) {}
 
-  // auth/register
   @Post('register')
   @ApiOperation({
-    description: 'Register a new user',
-    summary: 'Input - all details of user and output - User Id',
+    summary: 'Register a new user',
+    description:
+      'Register a new user account.',
   })
-  async create(@Body() createUserDto: CreateUserDto) {
-    return this.authService.createUser(createUserDto);
+  async create(
+    @Body() createUserDto: CreateUserDto,
+  ) {
+    return this.authService.createUser(
+      createUserDto,
+    );
   }
 
-  // auth/login
   @Post('login')
   @ApiOperation({
-    description: 'Login API of user',
-    summary: 'Input - email and password, Output - jwtToken + role',
+    summary: 'User login',
+    description:
+      'Authenticate user and return JWT.',
   })
-  async loginUser(@Body() loginUserDto: LoginUserDto) {
-    return this.authService.loginUser(loginUserDto);
+  async loginUser(
+    @Body() loginUserDto: LoginUserDto,
+  ) {
+    return this.authService.loginUser(
+      loginUserDto,
+    );
   }
 
-  // 🔥 NEW: GET CURRENT USER
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
   @Get('me')
   @ApiOperation({
-    description: 'Get current logged in user',
-    summary: 'Returns logged-in user profile',
+    summary: 'Current user',
+    description:
+      'Returns the authenticated user.',
   })
-  async getMe(@UserId() userId: number) {
+  async getMe(
+    @UserId() userId: number,
+  ) {
     return this.authService.getMe(userId);
   }
 
-  // auth/update-user
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
   @Patch('update-user')
   @ApiOperation({
-    description: 'Update API for USER',
-    summary: 'Input - details to update, Output - Updated User Details',
+    summary: 'Update own profile',
+    description:
+      'Update authenticated user profile.',
   })
-  async update(@Body() updateAuthData: UpdateUserDto, @UserId() userId: number) {
-    return this.authService.update(updateAuthData, userId);
+  async update(
+    @Body() updateAuthData: UpdateUserDto,
+    @UserId() userId: number,
+  ) {
+    return this.authService.update(
+      updateAuthData,
+      userId,
+    );
   }
 
-  // auth/update-user/:id
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(Role.Admin)
   @Patch('update-user/:id')
   @ApiOperation({
-    description: 'Update API of USER by Id (for admin)',
-    summary: 'Input - details + Id + admin token, Output - Updated User Details',
+    summary: 'Admin update user',
+    description:
+      'Update any user by ID.',
   })
-  async updateById(@Param('id') id: string, @Body() updateAuthData: UpdateUserDto) {
-    return this.authService.update(updateAuthData, +id);
+  async updateById(
+    @Param('id', ParseIntPipe)
+    id: number,
+    @Body() updateAuthData: UpdateUserDto,
+  ) {
+    return this.authService.update(
+      updateAuthData,
+      id,
+    );
   }
 
-  // auth/adminlogin
   @Post('adminlogin')
   @ApiOperation({
-    description: 'Admin Login',
-    summary: 'Output - jwtToken',
+    summary: 'Admin login',
+    description:
+      'Authenticate admin and return JWT.',
   })
-  async loginAdmin(@Body() loginAdminDto: LoginAdminDto) {
-    return this.authService.loginAdmin(loginAdminDto);
+  async loginAdmin(
+    @Body() loginAdminDto: LoginAdminDto,
+  ) {
+    return this.authService.loginAdmin(
+      loginAdminDto,
+    );
   }
 
-  // auth/adminregister
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(Role.SuperAdmin)
   @Post('adminregister')
   @ApiOperation({
-    description: 'Register a new admin',
-    summary: 'Input - admin details + SuperAdmin token, Output - Admin Id',
+    summary: 'Register admin',
+    description:
+      'Create a new admin account.',
   })
-  async registerAdmin(@Body() createAdminDto: CreateAdminDto) {
-    return this.authService.createAdmin(createAdminDto);
+  async registerAdmin(
+    @Body() createAdminDto: CreateAdminDto,
+  ) {
+    return this.authService.createAdmin(
+      createAdminDto,
+    );
   }
 
-  // auth/users
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(Role.Admin)
   @Get('users')
   @ApiOperation({
-    description: 'Get all users',
-    summary: 'Input - admin token, Output - All Users',
+    summary: 'Get all users',
+    description:
+      'Returns all registered users.',
   })
   async getAllUsers() {
     return this.authService.getAllUsers();

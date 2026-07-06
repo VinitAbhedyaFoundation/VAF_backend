@@ -13,55 +13,47 @@ import * as fs from 'fs/promises';
 
 @Injectable()
 export class CertificateService {
-  private readonly logger = new Logger(
-    CertificateService.name,
-  );
+  private readonly logger = new Logger(CertificateService.name);
 
   constructor(
-    private db: DatabaseService,
-    private pdfService: PdfService,
-    private cloudinaryService: CloudinaryService,
-  ) { }
+    private readonly db: DatabaseService,
+    private readonly pdfService: PdfService,
+    private readonly cloudinaryService: CloudinaryService,
+  ) {}
 
-  async generateCertificates(
-    driveId: number,
-  ) {
-    const drive =
-      await this.db.drive.findUnique({
-        where: {
-          id: driveId,
-        },
-      });
+  async generateCertificates(driveId: number) {
+    const drive = await this.db.drive.findUnique({
+      where: { id: driveId },
+    });
 
     if (!drive) {
-      throw new NotFoundException(
-        'Drive not found',
-      );
+      throw new NotFoundException('Drive not found');
     }
 
-    const participants =
-      await this.db.participation.findMany({
-        where: {
-          driveId,
-          status: 'Approved',
-        },
-        include: {
-          user: true,
-          drive: {
-            include: {
-              driveLocation: true,
-            },
+    const participants = await this.db.participation.findMany({
+      where: {
+        driveId,
+        status: 'Approved',
+      },
+      include: {
+        user: true,
+        drive: {
+          include: {
+            driveLocation: true,
           },
         },
-      });
+      },
+    });
 
     let created = 0;
     let skipped = 0;
     let failed = 0;
 
     for (const participant of participants) {
+      let pdfPath: string | null = null;
+
       try {
-        const exists =
+        const existingCertificate =
           await this.db.certificate.findFirst({
             where: {
               userId: participant.userId,
@@ -69,29 +61,34 @@ export class CertificateService {
             },
           });
 
-        if (exists) {
+        if (existingCertificate) {
           skipped++;
           continue;
         }
 
-        console.log("Generating certificate for:", participant.user.name, participant.drive.title);
-        const pdfPath =
-          await this.pdfService.generateCertificate(
-            participant.user.name,
-            participant.drive.title ?? '',
-            participant.drive.date,
-            participant.drive.driveLocation
-              ?.location ??
+        this.logger.log(
+          `Generating certificate for ${participant.user.name}`,
+        );
+
+        pdfPath = await this.pdfService.generateCertificate(
+          participant.user.name,
+          participant.drive.title ?? 'Drive',
+          participant.drive.date,
+          participant.drive.driveLocation?.location ??
             'Location Not Specified',
-            getTemplatePath(
-              participant.drive.title ?? 'Drive',
-            ),
-          );
+          getTemplatePath(
+            participant.drive.title ?? 'Drive',
+          ),
+        );
 
         const upload =
-          await this.cloudinaryService.uploadFile(
-            pdfPath,
+          await this.cloudinaryService.uploadFile(pdfPath);
+
+        if (!upload?.public_id) {
+          throw new Error(
+            'Cloudinary upload failed.',
           );
+        }
 
         const downloadUrl =
           `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}` +
@@ -105,44 +102,57 @@ export class CertificateService {
           },
         });
 
-        await fs.unlink(pdfPath);
-
         created++;
+
+        this.logger.log(
+          `Certificate generated successfully for ${participant.user.name}`,
+        );
       } catch (error) {
         failed++;
 
-        console.error(
-          "CERTIFICATE ERROR:",
-          error
+        this.logger.error(
+          `Failed to generate certificate for User ID: ${participant.userId}`,
+          error instanceof Error
+            ? error.stack
+            : String(error),
         );
 
-        throw error;
+        continue;
+      } finally {
+        if (pdfPath) {
+          try {
+            await fs.unlink(pdfPath);
+          } catch {
+            this.logger.warn(
+              `Unable to delete temporary PDF: ${pdfPath}`,
+            );
+          }
+        }
       }
     }
 
     if (created > 0) {
       await this.db.drive.update({
-        where: {
-          id: driveId,
-        },
+        where: { id: driveId },
         data: {
           certificateIssued: true,
         },
       });
     }
 
+    this.logger.log(
+      `Certificate generation completed. Created: ${created}, Skipped: ${skipped}, Failed: ${failed}`,
+    );
+
     return {
-      message:
-        'Certificates generated successfully',
+      message: 'Certificates generated successfully',
       created,
       skipped,
       failed,
     };
   }
 
-  async getMyCertificates(
-    userId: number,
-  ) {
+  async getMyCertificates(userId: number) {
     return this.db.certificate.findMany({
       where: {
         userId,

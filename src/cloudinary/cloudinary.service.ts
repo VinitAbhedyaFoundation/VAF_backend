@@ -1,4 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { v2 as cloudinary } from 'cloudinary';
 import * as fs from 'fs';
 
@@ -8,14 +12,19 @@ export class CloudinaryService {
     CloudinaryService.name,
   );
 
-  constructor() {
+  constructor(
+    private readonly configService: ConfigService,
+  ) {
     cloudinary.config({
-      cloud_name:
-        process.env.CLOUDINARY_CLOUD_NAME,
-      api_key:
-        process.env.CLOUDINARY_API_KEY,
-      api_secret:
-        process.env.CLOUDINARY_API_SECRET,
+      cloud_name: this.configService.get<string>(
+        'CLOUDINARY_CLOUD_NAME',
+      ),
+      api_key: this.configService.get<string>(
+        'CLOUDINARY_API_KEY',
+      ),
+      api_secret: this.configService.get<string>(
+        'CLOUDINARY_API_SECRET',
+      ),
     });
   }
 
@@ -39,7 +48,6 @@ export class CloudinaryService {
             folder: 'vaf-certificates',
           },
         );
-        console.log(result);
 
       this.logger.log(
         `Upload successful: ${result.secure_url}`,
@@ -48,8 +56,10 @@ export class CloudinaryService {
       return result;
     } catch (error) {
       this.logger.error(
-        'Cloudinary upload failed',
-        error,
+        `Cloudinary upload failed for file: ${filePath}`,
+        error instanceof Error
+          ? error.stack
+          : String(error),
       );
 
       throw error;

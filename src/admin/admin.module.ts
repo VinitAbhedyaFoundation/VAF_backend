@@ -8,5 +8,6 @@ import { DriveModule } from '../drive/drive.module';
   imports: [UserModule, DriveModule],
   controllers: [AdminController],
   providers: [AdminService],
+  exports: [AdminService],
 })
 export class AdminModule {}

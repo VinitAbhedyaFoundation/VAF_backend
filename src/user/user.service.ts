@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Injectable,
   InternalServerErrorException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 
@@ -10,9 +11,21 @@ import { Role, UserStatus } from '@prisma/client';
 
 @Injectable()
 export class UserService {
+  private readonly logger = new Logger(UserService.name);
+
   constructor(
-    private databaseService: DatabaseService,
-  ) { }
+    private readonly databaseService: DatabaseService,
+  ) {}
+
+  private getErrorDetails(
+  error: unknown,
+): string {
+  if (error instanceof Error) {
+    return error.stack ?? error.message;
+  }
+
+  return String(error);
+}
 
   // =========================
   // 🚫 SUSPEND USER
@@ -53,7 +66,7 @@ export class UserService {
         message: 'User suspended successfully',
         user: updatedUser,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       if (
         error instanceof NotFoundException ||
         error instanceof BadRequestException
@@ -61,8 +74,11 @@ export class UserService {
         throw error;
       }
 
-      console.error('suspendUser error:', error);
-      throw new InternalServerErrorException('Something went wrong');
+      this.logger.error(
+        'suspendUser error:',
+        this.getErrorDetails(error),
+      );
+      throw new InternalServerErrorException('Failed to suspend user');
     }
   }
 
@@ -105,7 +121,7 @@ export class UserService {
         message: 'User approved successfully',
         user: updatedUser,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       if (
         error instanceof NotFoundException ||
         error instanceof BadRequestException
@@ -113,8 +129,11 @@ export class UserService {
         throw error;
       }
 
-      console.error('approveUser error:', error);
-      throw new InternalServerErrorException('Something went wrong');
+      this.logger.error(
+        'approveUser error:',
+        this.getErrorDetails(error),
+      );
+      throw new InternalServerErrorException('Failed to approve user');
     }
   }
 
@@ -147,13 +166,16 @@ export class UserService {
         message: 'User Details',
         user,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       if (error instanceof NotFoundException) {
         throw error;
       }
 
-      console.error('getUserById error:', error);
-      throw new InternalServerErrorException('Something went wrong');
+      this.logger.error(
+        'getUserById error:',
+        this.getErrorDetails(error),
+      );
+      throw new InternalServerErrorException('Failed to fetch user');
     }
   }
 
@@ -183,7 +205,7 @@ export class UserService {
       return {
         message: 'User deleted successfully',
       };
-    } catch (error) {
+    } catch (error: unknown) {
       if (
         error instanceof NotFoundException ||
         error instanceof BadRequestException
@@ -191,8 +213,11 @@ export class UserService {
         throw error;
       }
 
-      console.error('deleteUser error:', error);
-      throw new InternalServerErrorException('Something went wrong');
+      this.logger.error(
+        'deleteUser error:',
+        this.getErrorDetails(error),
+      );
+      throw new InternalServerErrorException('Failed to delete user');
     }
   }
 
@@ -225,13 +250,16 @@ export class UserService {
         message: 'User Details',
         user,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       if (error instanceof NotFoundException) {
         throw error;
       }
 
-      console.error('getUserByPloggerId error:', error);
-      throw new InternalServerErrorException('Something went wrong');
+      this.logger.error(
+        'getUserByPloggerId error:',
+        this.getErrorDetails(error),
+      );
+      throw new InternalServerErrorException('Failed to fetch user');
     }
   }
 
@@ -241,7 +269,6 @@ export class UserService {
 
   async getAllUsers() {
     try {
-      // FIX 1: Restored valid findMany — was corrupted by merge conflict
       const users =
         await this.databaseService.user.findMany({
           include: {
@@ -255,11 +282,11 @@ export class UserService {
       const formattedUsers = users.map((user) => {
         const totalDrives = user.participations.length;
         const totalHours = user.participations.reduce(
-          (sum: number, p: any) => sum + (p.hours ?? 0),
+          (sum, participation) => sum + (participation.hours ?? 0),
           0,
         );
         const totalWaste = user.participations.reduce(
-          (sum: number, p: any) => sum + (p.waste ?? 0),
+          (sum, participation) => sum + (participation.waste ?? 0),
           0,
         );
         const score = totalHours + totalWaste + totalDrives * 5;
@@ -282,9 +309,12 @@ export class UserService {
         message: 'Users fetched successfully',
         users: formattedUsers,
       };
-    } catch (error) {
-      console.error('getAllUsers error:', error);
-      throw new InternalServerErrorException('Something went wrong');
+    } catch (error: unknown) {
+      this.logger.error(
+        'getAllUsers error:',
+        this.getErrorDetails(error),
+      );
+      throw new InternalServerErrorException('Failed to fetch users');
     }
   }
 
@@ -309,11 +339,11 @@ export class UserService {
         .map((user) => {
           const totalDrives = user.participations.length;
           const totalHours = user.participations.reduce(
-            (sum: number, p: any) => sum + (p.hours ?? 0),
+            (sum, participation) => sum + (participation.hours ?? 0),
             0,
           );
           const totalWaste = user.participations.reduce(
-            (sum: number, p: any) => sum + (p.waste ?? 0),
+            (sum, participation) => sum + (participation.waste ?? 0),
             0,
           );
           const score = totalHours + totalWaste + totalDrives * 5;
@@ -338,9 +368,12 @@ export class UserService {
         message: 'Leaderboard fetched successfully',
         leaderboard: ranked,
       };
-    } catch (error) {
-      console.error('getLeaderboard error:', error);
-      throw new InternalServerErrorException('Something went wrong');
+    } catch (error: unknown) {
+      this.logger.error(
+        'getLeaderboard error:',
+        this.getErrorDetails(error),
+      );
+      throw new InternalServerErrorException('Failed to fetch leaderboard');
     }
   }
 
@@ -354,8 +387,6 @@ export class UserService {
         throw new BadRequestException('Search query is required');
       }
 
-      // FIX 2: Restored valid findMany — was corrupted by merge conflict
-      // (malformed OR array closing bracket + duplicate select block)
       const users =
         await this.databaseService.user.findMany({
           where: {
@@ -394,13 +425,16 @@ export class UserService {
         message: 'Search results',
         users,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       if (error instanceof BadRequestException) {
         throw error;
       }
 
-      console.error('searchUsers error:', error);
-      throw new InternalServerErrorException('Something went wrong');
+      this.logger.error(
+        'searchUsers error:',
+        this.getErrorDetails(error),
+      );
+      throw new InternalServerErrorException('Failed to search users');
     }
   }
 
@@ -410,7 +444,7 @@ export class UserService {
 
   async markAttendance(temporaryToken: string, userId: number) {
     try {
-      if (!temporaryToken || temporaryToken.length < 10) {
+      if (!temporaryToken) {
         throw new BadRequestException('Invalid token');
       }
 
@@ -479,7 +513,7 @@ export class UserService {
       return {
         message: 'Attendance marked successfully',
       };
-    } catch (error) {
+    } catch (error: unknown) {
       if (
         error instanceof BadRequestException ||
         error instanceof NotFoundException
@@ -487,8 +521,11 @@ export class UserService {
         throw error;
       }
 
-      console.error('markAttendance error:', error);
-      throw new InternalServerErrorException('Something went wrong');
+      this.logger.error(
+        'markAttendance error:',
+        this.getErrorDetails(error),
+      );
+      throw new InternalServerErrorException('Failed to mark attendance');
     }
   }
 
@@ -512,23 +549,26 @@ export class UserService {
           },
         });
 
-      const drives = participations.map((p: any) => ({
-        id: p.drive.id,
-        date: p.drive.date,
-        totalHours: p.drive.totalHours,
-        hours: p.hours ?? 0,
-        waste: p.waste ?? 0,
-        status: p.status,
-        location: p.drive.driveLocation?.location || null,
+      const drives = participations.map((participation) => ({
+        id: participation.drive.id,
+        date: participation.drive.date,
+        totalHours: participation.drive.totalHours,
+        hours: participation.hours ?? 0,
+        waste: participation.waste ?? 0,
+        status: participation.status,
+        location: participation.drive.driveLocation?.location ?? null,
       }));
 
       return {
         message: drives.length ? 'Drives Attended' : 'No drives attended',
         drives,
       };
-    } catch (error) {
-      console.error('drivesAttended error:', error);
-      throw new InternalServerErrorException('Something went wrong');
+    } catch (error: unknown) {
+      this.logger.error(
+        'drivesAttended error:',
+        this.getErrorDetails(error),
+      );
+      throw new InternalServerErrorException('Failed to fetch attended drives');
     }
   }
 
@@ -576,7 +616,7 @@ export class UserService {
         message: 'User promoted to Admin successfully',
         user: updatedUser,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       if (
         error instanceof NotFoundException ||
         error instanceof BadRequestException
@@ -584,8 +624,11 @@ export class UserService {
         throw error;
       }
 
-      console.error('promoteUser error:', error);
-      throw new InternalServerErrorException('Something went wrong');
+      this.logger.error(
+        'promoteUser error:',
+        this.getErrorDetails(error),
+      );
+      throw new InternalServerErrorException('Failed to promote user');
     }
   }
 
@@ -625,9 +668,14 @@ export class UserService {
         message: 'Pending attendance fetched successfully',
         attendance: pendingAttendance,
       };
-    } catch (error) {
-      console.error('getPendingAttendance error:', error);
-      throw new InternalServerErrorException('Something went wrong');
+    } catch (error: unknown) {
+this.logger.error(
+  'getPendingAttendance error:',
+  this.getErrorDetails(error),
+);
+      throw new InternalServerErrorException(
+  'Failed to fetch pending attendance',
+);
     }
   }
 
@@ -660,13 +708,16 @@ export class UserService {
         message: 'Attendance approved successfully',
         attendance: updatedAttendance,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       if (error instanceof NotFoundException) {
         throw error;
       }
 
-      console.error('approveAttendance error:', error);
-      throw new InternalServerErrorException('Something went wrong');
+      this.logger.error(
+        'approveAttendance error:',
+        this.getErrorDetails(error),
+      );
+      throw new InternalServerErrorException('Failed to approve attendance');
     }
   }
 
@@ -697,13 +748,16 @@ export class UserService {
         message: 'Attendance rejected successfully',
         attendance: updatedAttendance,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       if (error instanceof NotFoundException) {
         throw error;
       }
 
-      console.error('rejectAttendance error:', error);
-      throw new InternalServerErrorException('Something went wrong');
+      this.logger.error(
+        'rejectAttendance error:',
+        this.getErrorDetails(error),
+      );
+      throw new InternalServerErrorException('Failed to reject attendance');
     }
   }
 }
