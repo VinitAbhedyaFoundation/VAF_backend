@@ -14,7 +14,7 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
-
+import { ScanAttendanceDto } from './dto/scan-attendance.dto';
 import { AttendanceService } from './attendance.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth-guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -67,6 +67,20 @@ export class AttendanceController {
       body.driveId,
     );
   }
+
+@Post('scan')
+@UseGuards(RolesGuard)
+@Roles('Admin', 'SuperAdmin')
+@ApiOperation({
+  summary: 'Scan volunteer QR and mark attendance',
+})
+scanAttendance(
+  @Body() dto: ScanAttendanceDto,
+) {
+  return this.service.scanAttendance(
+    dto.participationId,
+  );
+}
 
   // Approve attendance (Admin/SuperAdmin)
   @Patch('approve/:id')
