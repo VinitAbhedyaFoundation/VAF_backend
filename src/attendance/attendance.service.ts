@@ -218,5 +218,66 @@ export class AttendanceService {
     return {
       message: 'Attendance approved successfully',
     };
+
+  }
+  async scanAttendance(participationId: number) {
+    const participation =
+      await this.db.participation.findUnique({
+        where: {
+          id: participationId,
+        },
+        include: {
+          user: true,
+          drive: true,
+        },
+      });
+
+    if (!participation) {
+      throw new BadRequestException(
+        'Invalid QR Code',
+      );
+    }
+
+    if (participation.drive.completed) {
+      throw new BadRequestException(
+        'This drive has already been completed.',
+      );
+    }
+
+    if (participation.attendanceMarked) {
+      throw new BadRequestException(
+        'Attendance already marked',
+      );
+    }
+
+    if (participation.status !== 'Registered') {
+      throw new BadRequestException(
+        'Volunteer is not eligible for attendance.',
+      );
+    }
+
+    await this.db.participation.update({
+      where: {
+        id: participationId,
+      },
+      data: {
+        attendanceMarked: true,
+        status: 'Approved',
+      },
+    });
+
+    return {
+      success: true,
+      message: 'Attendance marked successfully',
+      volunteer: {
+        id: participation.user.id,
+        name: participation.user.name,
+        ploggerId: participation.user.ploggerId,
+      },
+      drive: {
+        id: participation.drive.id,
+        title: participation.drive.title ?? 'Drive',
+      },
+    };
   }
 }

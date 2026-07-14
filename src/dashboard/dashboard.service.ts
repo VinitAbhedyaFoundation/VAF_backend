@@ -118,24 +118,24 @@ export class DashboardService {
         [...completedParticipations]
           .reverse()
           .map((p: any) => ({
-            title:
-              p.drive?.title ??
-              this.DEFAULT_DRIVE,
+    participationId: p.id,
 
-            location:
-              p.drive?.driveLocation
-                ?.location ??
-              this.UNKNOWN_LOCATION,
+    driveId: p.driveId,
 
-            date:
-              p.drive?.date ?? null,
+    attendanceMarked: p.attendanceMarked,
 
-            hours:
-              p.hours ?? 0,
+    title: p.drive?.title ?? this.DEFAULT_DRIVE,
 
-            status:
-              p.status,
-          }));
+    location:
+        p.drive?.driveLocation?.location ??
+        this.UNKNOWN_LOCATION,
+
+    date: p.drive?.date ?? null,
+
+    hours: p.hours ?? 0,
+
+    status: p.status,
+}));
 
       const certificateRecords =
         await this.prisma.certificate.findMany({
