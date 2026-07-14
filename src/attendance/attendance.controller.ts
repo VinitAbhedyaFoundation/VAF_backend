@@ -19,6 +19,9 @@ import { AttendanceService } from './attendance.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth-guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { JoinDriveDto } from './dto/join-drive.dto';
+import { MarkAttendanceDto } from './dto/mark-attendance.dto';
+import { ApproveAttendanceDto } from './dto/approve-attendance.dto';
 
 @ApiTags('Attendance')
 @ApiBearerAuth()
@@ -27,7 +30,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 export class AttendanceController {
   constructor(
     private readonly service: AttendanceService,
-  ) {}
+  ) { }
 
   // Get all attendance records
   @Get('all')
@@ -45,7 +48,7 @@ export class AttendanceController {
   })
   joinDrive(
     @Req() req: any,
-    @Body() body: { driveId: number },
+    @Body() body: JoinDriveDto,
   ) {
     return this.service.joinDrive(
       req.user.sub,
@@ -60,7 +63,7 @@ export class AttendanceController {
   })
   markAttendance(
     @Req() req: any,
-    @Body() body: { driveId: number },
+    @Body() body: MarkAttendanceDto,
   ) {
     return this.service.markAttendance(
       req.user.sub,
@@ -78,8 +81,15 @@ export class AttendanceController {
   approve(
     @Param('id', ParseIntPipe)
     id: number,
+
+    @Body()
+    body: ApproveAttendanceDto,
   ) {
-    return this.service.approveAttendance(id);
+    return this.service.approveAttendance(
+      id,
+      body.hours,
+      body.waste,
+    );
   }
 
   // Logged-in user's attendance

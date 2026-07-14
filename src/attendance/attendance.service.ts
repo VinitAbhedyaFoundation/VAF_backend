@@ -1,10 +1,10 @@
 import {
-  Injectable,
   BadRequestException,
+  Injectable,
 } from '@nestjs/common';
 
+import { Prisma } from '@prisma/client';
 import { DatabaseService } from '../database/database.service';
-import { Participation, Prisma } from '@prisma/client';
 
 @Injectable()
 export class AttendanceService {
@@ -175,15 +175,13 @@ export class AttendanceService {
   // 🔹 APPROVE ATTENDANCE
   async approveAttendance(
     id: number,
+    hours: number,
+    waste: number,
   ) {
     const attendance =
       await this.db.participation.findUnique({
         where: {
           id,
-        },
-        select: {
-          id: true,
-          status: true,
         },
       });
 
@@ -205,22 +203,17 @@ export class AttendanceService {
       );
     }
 
-    const result =
-      await this.db.participation.updateMany({
-        where: {
-          id,
-          status: 'Pending',
-        },
-        data: {
-          status: 'Approved',
-        },
-      });
-
-    if (result.count === 0) {
-      throw new BadRequestException(
-        'Attendance approval failed',
-      );
-    }
+    await this.db.participation.update({
+      where: {
+        id,
+      },
+      data: {
+        status: 'Approved',
+        attendanceMarked: true,
+        hours,
+        waste,
+      },
+    });
 
     return {
       message: 'Attendance approved successfully',

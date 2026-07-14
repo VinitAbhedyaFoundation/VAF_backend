@@ -16,7 +16,7 @@ export class DashboardService {
 
   constructor(
     private readonly prisma: DatabaseService,
-  ) {}
+  ) { }
 
   async getUserDashboard(userId: number) {
     try {
@@ -46,29 +46,32 @@ export class DashboardService {
             },
           },
           orderBy: {
-            createdAt: 'asc',
+            createdAt: 'desc',
           },
         });
 
+      const completedParticipations = participations.filter(
+        (p) =>
+          p.status === 'Approved' &&
+          p.attendanceMarked,
+      );
+
       const drivesJoined =
-        participations.length;
+        completedParticipations.length;
 
       const hoursVolunteered =
-        participations.reduce(
+        completedParticipations.reduce(
           (sum: number, p: any) =>
             sum + (p.hours ?? 0),
           0,
         );
 
       const wasteCollected =
-        participations.reduce(
+        completedParticipations.reduce(
           (sum: number, p: any) =>
             sum + (p.waste ?? 0),
           0,
         );
-
-      const impactPoints =
-        wasteCollected * 4;
 
       const activityMap: Record<
         string,
@@ -80,7 +83,7 @@ export class DashboardService {
         }
       > = {};
 
-      participations.forEach((p: any) => {
+      completedParticipations.forEach((p: any) => {
         const date =
           p.drive?.date
             ?.toISOString()
@@ -112,7 +115,7 @@ export class DashboardService {
         Object.values(activityMap);
 
       const recentDrives =
-        [...participations]
+        [...completedParticipations]
           .reverse()
           .map((p: any) => ({
             title:
@@ -152,10 +155,9 @@ export class DashboardService {
           (c: any) => ({
             id: c.id,
 
-            title: `${
-              c.drive?.title ??
+            title: `${c.drive?.title ??
               this.DEFAULT_DRIVE
-            } Participation`,
+              } Participation`,
 
             drive:
               c.drive?.title ??
@@ -187,7 +189,6 @@ export class DashboardService {
           drivesJoined,
           hoursVolunteered,
           wasteCollected,
-          impactPoints,
         },
 
         milestone: {
