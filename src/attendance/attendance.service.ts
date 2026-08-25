@@ -1,10 +1,11 @@
 import {
-  Injectable,
   BadRequestException,
+  Injectable,
 } from '@nestjs/common';
 
-import { DatabaseService } from '../database/database.service';
 import { Prisma } from '@prisma/client';
+import { DatabaseService } from '../database/database.service';
+
 @Injectable()
 export class AttendanceService {
   constructor(
@@ -14,8 +15,25 @@ export class AttendanceService {
   // 🔹 GET ALL ATTENDANCE
   async getAll() {
     return this.db.participation.findMany({
-      include: {
-        user: true,
+      select: {
+        id: true,
+        userId: true,
+        driveId: true,
+        hours: true,
+        waste: true,
+        createdAt: true,
+        status: true,
+        attendanceMarked: true,
+
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            ploggerId: true,
+          },
+        },
+
         drive: true,
       },
     });
@@ -155,7 +173,7 @@ export class AttendanceService {
         },
         data: {
           attendanceMarked: true,
-  status: 'Pending',
+          status: 'Pending',
         },
       });
 
@@ -174,15 +192,13 @@ export class AttendanceService {
   // 🔹 APPROVE ATTENDANCE
   async approveAttendance(
     id: number,
+    hours: number,
+    waste: number,
   ) {
     const attendance =
       await this.db.participation.findUnique({
         where: {
           id,
-        },
-        select: {
-          id: true,
-          status: true,
         },
       });
 
@@ -204,86 +220,166 @@ export class AttendanceService {
       );
     }
 
-    const result =
-      await this.db.participation.updateMany({
-        where: {
-          id,
-          status: 'Pending',
-        },
-        data: {
-          status: 'Approved',
-        },
-      });
-
-    if (result.count === 0) {
-      throw new BadRequestException(
-        'Attendance approval failed',
-      );
-    }
+    await this.db.participation.update({
+      where: {
+        id,
+      },
+      data: {
+        status: 'Approved',
+        attendanceMarked: true,
+        hours,
+        waste,
+      },
+    });
 
     return {
       message: 'Attendance approved successfully',
     };
-    
+
   }
+
+  // 🔹 BULK APPROVE ATTENDANCE
+  async approveBulkAttendance(
+    participationIds: number[],
+  ) {
+    if (
+      !participationIds ||
+      participationIds.length === 0
+    ) {
+      throw new BadRequestException(
+        'No attendance records selected',
+      );
+    }
+
+    const participations =
+      await this.db.participation.findMany({
+        where: {
+          id: {
+            in: participationIds,
+          },
+        },
+        include: {
+          drive: {
+            select: {
+              id: true,
+              totalHours: true,
+            },
+          },
+        },
+      });
+
+    if (
+      participations.length !==
+      participationIds.length
+    ) {
+      throw new BadRequestException(
+        'One or more attendance records were not found',
+      );
+    }
+
+    // Registered and Pending records can be approved
+    const invalidRecords =
+      participations.filter(
+        (participation) =>
+          participation.status !== 'Registered' &&
+          participation.status !== 'Pending',
+      );
+
+    if (invalidRecords.length > 0) {
+      throw new BadRequestException(
+        'One or more attendance records cannot be approved',
+      );
+    }
+
+    await this.db.$transaction(
+      async (tx) => {
+        for (const participation of participations) {
+          await tx.participation.update({
+            where: {
+              id: participation.id,
+            },
+            data: {
+              status: 'Approved',
+              attendanceMarked: true,
+              hours:
+                participation.drive.totalHours,
+            },
+          });
+        }
+      },
+    );
+
+    return {
+      message:
+        'Attendance approved successfully',
+      approvedCount: participations.length,
+    };
+  }
+
   async scanAttendance(participationId: number) {
-  const participation =
-    await this.db.participation.findUnique({
+    const participation =
+      await this.db.participation.findUnique({
+        where: {
+          id: participationId,
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              ploggerId: true,
+            },
+          },
+          drive: true,
+        },
+      });
+
+    if (!participation) {
+      throw new BadRequestException(
+        'Invalid QR Code',
+      );
+    }
+
+    if (participation.drive.completed) {
+      throw new BadRequestException(
+        'This drive has already been completed.',
+      );
+    }
+
+    if (participation.attendanceMarked) {
+      throw new BadRequestException(
+        'Attendance already marked',
+      );
+    }
+
+    if (participation.status !== 'Registered') {
+      throw new BadRequestException(
+        'Volunteer is not eligible for attendance.',
+      );
+    }
+
+    await this.db.participation.update({
       where: {
         id: participationId,
       },
-      include: {
-        user: true,
-        drive: true,
+      data: {
+        attendanceMarked: true,
+        status: 'Approved',
       },
     });
 
-  if (!participation) {
-    throw new BadRequestException(
-      'Invalid QR Code',
-    );
+    return {
+      success: true,
+      message: 'Attendance marked successfully',
+      volunteer: {
+        id: participation.user.id,
+        name: participation.user.name,
+        ploggerId: participation.user.ploggerId,
+      },
+      drive: {
+        id: participation.drive.id,
+        title: participation.drive.title ?? 'Drive',
+      },
+    };
   }
-
-  if (participation.drive.completed) {
-  throw new BadRequestException(
-    'This drive has already been completed.',
-  );
-}
-
-  if (participation.attendanceMarked) {
-    throw new BadRequestException(
-      'Attendance already marked',
-    );
-  }
-
-  if (participation.status !== 'Registered') {
-  throw new BadRequestException(
-    'Volunteer is not eligible for attendance.',
-  );
-}
-
-  await this.db.participation.update({
-    where: {
-      id: participationId,
-    },
-    data: {
-      attendanceMarked: true,
-  status: 'Approved',
-    },
-  });
-
- return {
-  success: true,
-  message: 'Attendance marked successfully',
-  volunteer: {
-    id: participation.user.id,
-    name: participation.user.name,
-    ploggerId: participation.user.ploggerId,
-  },
- drive: {
-  id: participation.drive.id,
-  title: participation.drive.title ?? 'Drive',
-},
-};
-}
 }
