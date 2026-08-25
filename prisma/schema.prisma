@@ -41,6 +41,7 @@ model Drive {
   id                Int             @id @default(autoincrement())
   date              DateTime
   totalHours        Int
+  totalWasteKg      Int             @default(0)
   volunteerCount    Int             @default(0)
   temporaryToken    String          @unique
   expiryDate        DateTime?

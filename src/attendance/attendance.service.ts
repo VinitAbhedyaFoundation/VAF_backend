@@ -15,8 +15,25 @@ export class AttendanceService {
   // 🔹 GET ALL ATTENDANCE
   async getAll() {
     return this.db.participation.findMany({
-      include: {
-        user: true,
+      select: {
+        id: true,
+        userId: true,
+        driveId: true,
+        hours: true,
+        waste: true,
+        createdAt: true,
+        status: true,
+        attendanceMarked: true,
+
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            ploggerId: true,
+          },
+        },
+
         drive: true,
       },
     });
@@ -220,6 +237,85 @@ export class AttendanceService {
     };
 
   }
+
+  // 🔹 BULK APPROVE ATTENDANCE
+  async approveBulkAttendance(
+    participationIds: number[],
+  ) {
+    if (
+      !participationIds ||
+      participationIds.length === 0
+    ) {
+      throw new BadRequestException(
+        'No attendance records selected',
+      );
+    }
+
+    const participations =
+      await this.db.participation.findMany({
+        where: {
+          id: {
+            in: participationIds,
+          },
+        },
+        include: {
+          drive: {
+            select: {
+              id: true,
+              totalHours: true,
+            },
+          },
+        },
+      });
+
+    if (
+      participations.length !==
+      participationIds.length
+    ) {
+      throw new BadRequestException(
+        'One or more attendance records were not found',
+      );
+    }
+
+    // Registered and Pending records can be approved
+    const invalidRecords =
+      participations.filter(
+        (participation) =>
+          participation.status !== 'Registered' &&
+          participation.status !== 'Pending',
+      );
+
+    if (invalidRecords.length > 0) {
+      throw new BadRequestException(
+        'One or more attendance records cannot be approved',
+      );
+    }
+
+    await this.db.$transaction(
+      async (tx) => {
+        for (const participation of participations) {
+          await tx.participation.update({
+            where: {
+              id: participation.id,
+            },
+            data: {
+              status: 'Approved',
+              attendanceMarked: true,
+              hours:
+                participation.drive.totalHours,
+            },
+          });
+        }
+      },
+    );
+
+    return {
+      message:
+        'Attendance approved successfully',
+      approvedCount: participations.length,
+    };
+  }
+
   async scanAttendance(participationId: number) {
     const participation =
       await this.db.participation.findUnique({
@@ -227,7 +323,13 @@ export class AttendanceService {
           id: participationId,
         },
         include: {
-          user: true,
+          user: {
+            select: {
+              id: true,
+              name: true,
+              ploggerId: true,
+            },
+          },
           drive: true,
         },
       });

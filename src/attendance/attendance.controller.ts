@@ -22,6 +22,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { JoinDriveDto } from './dto/join-drive.dto';
 import { MarkAttendanceDto } from './dto/mark-attendance.dto';
 import { ApproveAttendanceDto } from './dto/approve-attendance.dto';
+import { BulkApproveAttendanceDto } from './dto/bulk-approve-attendance.dto';
 
 @ApiTags('Attendance')
 @ApiBearerAuth()
@@ -103,6 +104,21 @@ scanAttendance(
       id,
       body.hours,
       body.waste,
+    );
+  }
+
+    // Bulk approve attendance (Admin/SuperAdmin)
+  @Patch('approve-bulk')
+  @UseGuards(RolesGuard)
+  @Roles('Admin', 'SuperAdmin')
+  @ApiOperation({
+    summary: 'Bulk approve attendance',
+  })
+  approveBulk(
+    @Body() body: BulkApproveAttendanceDto,
+  ) {
+    return this.service.approveBulkAttendance(
+      body.participationIds,
     );
   }
 
