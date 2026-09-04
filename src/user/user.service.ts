@@ -280,15 +280,21 @@ export class UserService {
         });
 
       const formattedUsers = users.map((user) => {
-        const totalDrives = user.participations.length;
-        const totalHours = user.participations.reduce(
-          (sum, participation) => sum + (participation.hours ?? 0),
-          0,
-        );
-        const totalWaste = user.participations.reduce(
-          (sum, participation) => sum + (participation.waste ?? 0),
-          0,
-        );
+        const approvedParticipations = user.participations.filter(
+  (participation) => participation.status === 'Approved',
+);
+
+const totalDrives = approvedParticipations.length;
+
+const totalHours = approvedParticipations.reduce(
+  (sum, participation) => sum + (participation.hours ?? 0),
+  0,
+);
+
+const totalWaste = approvedParticipations.reduce(
+  (sum, participation) => sum + (participation.waste ?? 0),
+  0,
+);
         const score = totalHours + totalWaste + totalDrives * 5;
 
         return {
@@ -337,15 +343,19 @@ export class UserService {
 
       const ranked = users
         .map((user) => {
-          const totalDrives = user.participations.length;
-          const totalHours = user.participations.reduce(
+          const approvedParticipations = user.participations.filter(
+            (participation) => participation.status === 'Approved'
+          );
+
+          const totalDrives = approvedParticipations.length;
+          const totalHours = approvedParticipations.reduce(
             (sum, participation) => sum + (participation.hours ?? 0),
             0,
           );
-          const totalWaste = user.participations.reduce(
-            (sum, participation) => sum + (participation.waste ?? 0),
-            0,
-          );
+          const totalWaste = approvedParticipations.reduce(
+  (sum, participation) => sum + (participation.waste ?? 0),
+  0,
+);
           const score = totalHours + totalWaste + totalDrives * 5;
 
           return {

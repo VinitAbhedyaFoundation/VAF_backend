@@ -18,14 +18,14 @@ export class DriveService {
   private readonly logger = new Logger(DriveService.name);
 
   constructor(
-  private readonly databaseService: DatabaseService,
-) {}
+    private readonly databaseService: DatabaseService,
+  ) { }
 
   // =========================
   // 🔐 SECURE TOKEN
   // =========================
 
-private generateSecureToken(): string {
+  private generateSecureToken(): string {
     return randomBytes(16).toString('hex');
   }
 
@@ -105,10 +105,10 @@ private generateSecureToken(): string {
         throw error;
       }
 
-     this.logger.error(
-  'Create drive failed',
-  error instanceof Error ? error.stack : String(error),
-);
+      this.logger.error(
+        'Create drive failed',
+        error instanceof Error ? error.stack : String(error),
+      );
 
       throw new InternalServerErrorException(
         'Failed to create drive',
@@ -188,27 +188,54 @@ private generateSecureToken(): string {
                   location: true,
                 },
               },
+
+              participations: {
+                select: {
+                  hours: true,
+                  waste: true,
+                  status: true,
+                },
+              },
             },
           },
         );
 
-      return drives.map((drive) => ({
-        id: drive.id,
-        title: drive.title,
-        date: drive.date,
-        totalHours: drive.totalHours,
-        volunteerCount: drive.volunteerCount,
-        wasteKg: 0, // temporary until waste API is added
-        location: drive.driveLocation?.location || null,
-        completed: drive.completed,
-      }));
+      return drives.map((drive) => {
+        const approvedParticipations =
+          drive.participations.filter(
+            (participation) =>
+              participation.status === 'Approved',
+          );
+
+        const volunteerCount =
+          approvedParticipations.length;
+
+        const wasteKg =
+          approvedParticipations.reduce(
+            (sum, participation) =>
+              sum + (participation.waste ?? 0),
+            0,
+          );
+
+        return {
+          id: drive.id,
+          title: drive.title,
+          date: drive.date,
+          totalHours: drive.totalHours,
+          volunteerCount,
+          wasteKg,
+          location:
+            drive.driveLocation?.location || null,
+          completed: drive.completed,
+        };
+      });
     } catch (error) {
       this.logger.error(
-  'Fetch drives failed',
-  error instanceof Error
-    ? error.stack
-    : String(error),
-);
+        'Fetch drives failed',
+        error instanceof Error
+          ? error.stack
+          : String(error),
+      );
 
       throw new InternalServerErrorException(
         'Failed to fetch drives',
@@ -246,11 +273,11 @@ private generateSecureToken(): string {
       );
     } catch (error) {
       this.logger.error(
-  'Fetch locations failed',
-  error instanceof Error
-    ? error.stack
-    : String(error),
-);
+        'Fetch locations failed',
+        error instanceof Error
+          ? error.stack
+          : String(error),
+      );
 
       throw new InternalServerErrorException(
         'Failed to fetch locations',
@@ -308,7 +335,7 @@ private generateSecureToken(): string {
         totalHours: drive.totalHours,
         completed: drive.completed,
         location:
-drive.driveLocation?.location ?? null,
+          drive.driveLocation?.location ?? null,
       };
     } catch (error) {
       if (
@@ -317,12 +344,12 @@ drive.driveLocation?.location ?? null,
         throw error;
       }
 
-this.logger.error(
-  'Fetch drive failed',
-  error instanceof Error
-    ? error.stack
-    : String(error),
-);
+      this.logger.error(
+        'Fetch drive failed',
+        error instanceof Error
+          ? error.stack
+          : String(error),
+      );
 
       throw new InternalServerErrorException(
         'Failed to fetch drive',
@@ -422,12 +449,12 @@ this.logger.error(
         throw error;
       }
 
-this.logger.error(
-  'Update drive failed',
-  error instanceof Error
-    ? error.stack
-    : String(error),
-);
+      this.logger.error(
+        'Update drive failed',
+        error instanceof Error
+          ? error.stack
+          : String(error),
+      );
 
       throw new InternalServerErrorException(
         'Failed to update drive',
@@ -476,6 +503,7 @@ this.logger.error(
                 select: {
                   hours: true,
                   waste: true,
+                  status: true,
                 },
               },
             },
@@ -490,17 +518,28 @@ this.logger.error(
       const today = new Date();
 
       return drives.map((drive) => {
-        const volunteerCount = drive.participations.length;
+        const approvedParticipations =
+          drive.participations.filter(
+            (participation) =>
+              participation.status === 'Approved',
+          );
 
-        const wasteKg = drive.participations.reduce(
-          (sum, p) => sum + p.waste,
-          0
-        );
+        const volunteerCount =
+          approvedParticipations.length;
 
-        const hours = drive.participations.reduce(
-          (sum, p) => sum + p.hours,
-          0
-        );
+        const wasteKg =
+          approvedParticipations.reduce(
+            (sum, participation) =>
+              sum + (participation.waste ?? 0),
+            0,
+          );
+
+        const hours =
+          approvedParticipations.reduce(
+            (sum, participation) =>
+              sum + (participation.hours ?? 0),
+            0,
+          );
 
         return {
           id: drive.id,
@@ -510,7 +549,7 @@ this.logger.error(
           volunteerCount,
           wasteKg,
           hours,
-        location: drive.driveLocation?.location ?? null,
+          location: drive.driveLocation?.location ?? null,
 
           status:
             new Date(drive.date) < today
@@ -527,11 +566,11 @@ this.logger.error(
       }
 
       this.logger.error(
-  'Fetch by date failed',
-  error instanceof Error
-    ? error.stack
-    : String(error),
-);
+        'Fetch by date failed',
+        error instanceof Error
+          ? error.stack
+          : String(error),
+      );
 
       throw new InternalServerErrorException(
         'Failed to fetch drives',
@@ -557,6 +596,14 @@ this.logger.error(
                 location: true,
               },
             },
+
+            participations: {
+              select: {
+                hours: true,
+                waste: true,
+                status: true,
+              },
+            },
           },
         });
 
@@ -572,11 +619,11 @@ this.logger.error(
       }));
     } catch (error) {
       this.logger.error(
-  'Fetch upcoming drives failed',
-  error instanceof Error
-    ? error.stack
-    : String(error),
-);
+        'Fetch upcoming drives failed',
+        error instanceof Error
+          ? error.stack
+          : String(error),
+      );
 
       throw new InternalServerErrorException(
         'Failed to fetch upcoming drives',
