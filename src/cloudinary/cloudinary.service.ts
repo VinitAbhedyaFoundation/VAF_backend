@@ -65,4 +65,43 @@ export class CloudinaryService {
       throw error;
     }
   }
+
+  async uploadTemplateBuffer(
+    buffer: Buffer,
+    originalName: string,
+  ) {
+    return new Promise<any>((resolve, reject) => {
+      const baseName = originalName
+        .replace(/\.[^/.]+$/, '')
+        .replace(/[^a-zA-Z0-9-_]/g, '-');
+
+      const publicId = `${baseName}-${Date.now()}`;
+
+      const uploadStream =
+        cloudinary.uploader.upload_stream(
+          {
+            resource_type: 'image',
+            folder: 'vaf-certificate-templates',
+            public_id: publicId,
+          },
+          (error, result) => {
+            if (error) {
+              this.logger.error(
+                'Certificate template upload failed',
+                error instanceof Error
+                  ? error.stack
+                  : String(error),
+              );
+
+              reject(error);
+              return;
+            }
+
+            resolve(result);
+          },
+        );
+
+      uploadStream.end(buffer);
+    });
+  }
 }

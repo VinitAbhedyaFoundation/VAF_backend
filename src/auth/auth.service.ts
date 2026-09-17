@@ -307,74 +307,75 @@ const { password } = loginAdminData;
 
 
   // 🔥 CREATE ADMIN
-  async createAdmin(createAdminData: CreateAdminDto) {
+async createAdmin(createAdminData: CreateAdminDto) {
+  const email = createAdminData.email.toLowerCase().trim();
 
-    const email = createAdminData.email
-  .toLowerCase()
-  .trim();
+  const {
+    password,
+    name,
+    city,
+    gender,
+  } = createAdminData;
 
-const { password, name } = createAdminData;
-
-    try {
-
-      const existingAdmin =
-        await this.databaseService.user.findUnique({
-          where: { email },
-        });
-
-      if (existingAdmin) {
-        throw new ConflictException(
-          'Admin already exists',
-        );
-      }
-
-      const hashedPassword =
-        await bcrypt.hash(password, 12);
-
-      await this.databaseService.user.create({
-        data: {
-          name,
-          email,
-          password: hashedPassword,
-
-          role: Role.Admin,
-          status: UserStatus.Approved,
-
-          ploggerId: `ADMIN_${Date.now()}`,
-        },
+  try {
+    const existingAdmin =
+      await this.databaseService.user.findUnique({
+        where: { email },
       });
 
-      return {
-        message:
-          'Admin Created Successfully',
-      };
-
-    } catch (error: unknown) {
-
-      this.logger.error(
-        error instanceof Error
-          ? error.stack
-          : String(error),
+    if (existingAdmin) {
+      throw new ConflictException(
+        'Admin already exists',
       );
-
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2002'
-      ) {
-        throw new ConflictException(
-          'Email already exists',
-        );
-      }
-
-      if (error instanceof Error) {
-        throw new InternalServerErrorException(
-          'Operation failed',
-        );
-      }
-
-      throw new InternalServerErrorException();
     }
+
+    const hashedPassword =
+      await bcrypt.hash(password, 12);
+
+    await this.databaseService.user.create({
+      data: {
+        name,
+        email,
+        password: hashedPassword,
+
+        city,
+        gender,
+
+        role: Role.Admin,
+        status: UserStatus.Approved,
+
+        ploggerId: `ADMIN_${Date.now()}`,
+      },
+    });
+
+    return {
+      message: 'Admin Created Successfully',
+    };
+  } catch (error: unknown) {
+    this.logger.error(
+      error instanceof Error
+        ? error.stack
+        : String(error),
+    );
+
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2002'
+    ) {
+      throw new ConflictException(
+        'Email already exists',
+      );
+    }
+
+    if (error instanceof Error) {
+      throw new InternalServerErrorException(
+        'Operation failed',
+      );
+    }
+
+    throw new InternalServerErrorException();
   }
+}
 
   // 🔥 GET USERS
   async getAllUsers() {

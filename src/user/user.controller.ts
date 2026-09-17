@@ -25,7 +25,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth-guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 
 import { Roles } from '../auth/decorators/roles.decorator';
-import { Role } from '@prisma/client';
+import { Role, Gender } from '@prisma/client';
 
 @ApiTags('User')
 @Controller('user')
@@ -122,6 +122,31 @@ getLeaderboard() {
   suspendUser(@Param('id') id: string) {
     return this.userService.suspendUser(Number(id));
   }
+
+    // =========================
+  // CREATE VOLUNTEER
+  // =========================
+
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(Role.SuperAdmin)
+@Post('create-volunteer')
+@ApiOperation({
+  summary: 'Create volunteer (SuperAdmin only)',
+})
+createVolunteer(
+  @Body()
+  body: {
+    name: string;
+    email: string;
+    city?: string;
+    gender: Gender;
+    password: string;
+  },
+) {
+  return this.userService.createVolunteer(body);
+}
+
   // =========================
   // DELETE USER
   // =========================

@@ -26,15 +26,21 @@ export class MessageService {
   // =========================
 
   async getAll() {
-    return this.db.message.findMany({
-      include: {
-        sender: true,
+  return this.db.message.findMany({
+    include: {
+      sender: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
       },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
-  }
+    },
+    orderBy: {
+      createdAt: 'desc',
+    },
+  });
+}
 
   // =========================
   // 🔔 GET USER NOTIFICATIONS

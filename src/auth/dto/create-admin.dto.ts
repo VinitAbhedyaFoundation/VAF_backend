@@ -1,6 +1,7 @@
 import { Transform } from 'class-transformer';
 import {
   IsEmail,
+  IsEnum,
   IsNotEmpty,
   IsString,
   Matches,
@@ -8,6 +9,7 @@ import {
   MinLength,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+import { Gender } from '@prisma/client';
 
 export class CreateAdminDto {
   @ApiProperty({
@@ -31,10 +33,26 @@ export class CreateAdminDto {
   @IsEmail()
   @IsNotEmpty()
   @MaxLength(255)
-  @Transform(({ value }) =>
-    value?.toLowerCase().trim(),
-  )
+  @Transform(({ value }) => value?.toLowerCase().trim())
   email!: string;
+
+  @ApiProperty({
+    example: 'Pune',
+    maxLength: 100,
+  })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(100)
+  @Transform(({ value }) => value?.trim())
+  city!: string;
+
+  @ApiProperty({
+    enum: Gender,
+    example: Gender.Male,
+  })
+  @IsEnum(Gender)
+  @IsNotEmpty()
+  gender!: Gender;
 
   @ApiProperty({
     example: 'StrongPass123',

@@ -3,6 +3,7 @@
     "module": "commonjs",
     "target": "ES2021",
 
+    "rootDir": "./",
     "outDir": "./dist",
 
     "moduleResolution": "node",
@@ -16,10 +17,15 @@
     "strict": true,
     "skipLibCheck": true,
 
-    "sourceMap": true
+    "sourceMap": true,
+
+    "types": ["node", "jest"]
   },
 
-  "include": ["src/**/*.ts"],
+  "include": [
+    "src/**/*.ts",
+    "scripts/**/*.ts"
+  ],
 
   "exclude": [
     "node_modules",
