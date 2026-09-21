@@ -90,6 +90,7 @@ model Message {
   subject     String
   content     String
   senderId    Int
+  recipients  Int      @default(0)
   isBroadcast Boolean  @default(true)
   createdAt   DateTime @default(now())
   sender      User     @relation(fields: [senderId], references: [id])
