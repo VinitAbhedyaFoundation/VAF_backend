@@ -26,29 +26,27 @@ export class MessageService {
   // =========================
 
   async getAll() {
-  return this.db.message.findMany({
-    include: {
-      sender: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
+    return this.db.message.findMany({
+      include: {
+        sender: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
         },
       },
-    },
-    orderBy: {
-      createdAt: 'desc',
-    },
-  });
-}
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  }
 
   // =========================
   // 🔔 GET USER NOTIFICATIONS
   // =========================
 
-  async getNotifications(
-    userId: number,
-  ) {
+  async getNotifications(userId: number) {
     return this.db.notification.findMany({
       where: {
         userId,
@@ -63,30 +61,28 @@ export class MessageService {
   // 📧 SEND BROADCAST MESSAGE
   // =========================
 
-  async send(
-    body: CreateMessageDto,
-  ) {
-    if (
-      !body.subject ||
-      !body.content
-    ) {
+  async send(body: CreateMessageDto) {
+    if (!body.subject || !body.content) {
       throw new BadRequestException(
         'Subject and content are required',
       );
     }
 
-    const users =
-      await this.db.user.findMany({
-        select: {
-          id: true,
-          email: true,
-          status: true,
-        },
-      });
+    // Only approved volunteers/users should receive
+    // broadcast messages.
+    const approvedUsers = await this.db.user.findMany({
+      where: {
+        status: UserStatus.Approved,
+      },
+      select: {
+        id: true,
+        email: true,
+      },
+    });
 
     const emails = [
       ...new Set(
-        users
+        approvedUsers
           .map((user) => user.email)
           .filter(Boolean),
       ),
@@ -94,10 +90,11 @@ export class MessageService {
 
     if (!emails.length) {
       throw new BadRequestException(
-        'No users available to send message',
+        'No approved volunteers available to send message',
       );
     }
 
+    // Send email to approved users only.
     try {
       await this.mailService.sendBulkMail(
         emails,
@@ -117,37 +114,28 @@ export class MessageService {
       );
     }
 
-    const message =
-      await this.db.message.create({
-        data: {
-          subject: body.subject,
-          content: body.content,
-          senderId: body.senderId,
-          isBroadcast: true,
-        },
-      });
+    // Save message and the number of approved recipients.
+    const message = await this.db.message.create({
+      data: {
+        subject: body.subject,
+        content: body.content,
+        senderId: body.senderId,
+        recipients: approvedUsers.length,
+        isBroadcast: true,
+      },
+    });
 
-    const approvedUsers =
-      users.filter(
-        (user) =>
-          user.status ===
-          UserStatus.Approved,
-      );
-
-    if (approvedUsers.length) {
-      await this.db.notification.createMany({
-        data: approvedUsers.map(
-          (user) => ({
-            userId: user.id,
-            title: body.subject,
-            message: body.content,
-          }),
-        ),
-      });
-    }
+    // Create in-app notifications for approved users.
+    await this.db.notification.createMany({
+      data: approvedUsers.map((user) => ({
+        userId: user.id,
+        title: body.subject,
+        message: body.content,
+      })),
+    });
 
     this.logger.log(
-      `Broadcast message sent to ${approvedUsers.length} users.`,
+      `Broadcast message sent to ${approvedUsers.length} approved users.`,
     );
 
     return message;
