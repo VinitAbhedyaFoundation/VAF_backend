@@ -47,6 +47,43 @@ export class MailService implements OnModuleInit {
     }
   }
 
+  async sendMail(
+    to: string,
+    subject: string,
+    content: string,
+  ): Promise<void> {
+    if (!to) {
+      return;
+    }
+
+    try {
+      await this.transporter.sendMail({
+        from: `"VAF Portal" <${process.env.EMAIL_USER}>`,
+        to,
+        subject,
+        html: `
+        <div style="font-family: Arial, sans-serif;">
+          <h2>${subject}</h2>
+          ${content}
+          <hr />
+          <small>Sent via VAF Portal</small>
+        </div>
+      `,
+      });
+
+      this.logger.log(`Email sent successfully to ${to}.`);
+    } catch (error) {
+      this.logger.error(
+        'Failed to send email.',
+        error instanceof Error
+          ? error.stack
+          : String(error),
+      );
+
+      throw error;
+    }
+  }
+
   async sendBulkMail(
     to: string[],
     subject: string,

@@ -174,3 +174,12 @@ enum AttendanceStatus {
   Rejected
   Registered
 }
+
+model NewsletterSubscriber {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  createdAt DateTime @default(now())
+  isActive  Boolean  @default(true)
+
+  @@index([email])
+}
