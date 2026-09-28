@@ -17,6 +17,7 @@ import { MailModule } from './mail/mail.module';
 import { PaymentModule } from './payment/payment.module';
 import { CertificateModule } from './certificate/certificate.module';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
+import { NewsletterModule } from './newsletter/newsletter.module';
 
 @Module({
   imports: [
@@ -68,6 +69,7 @@ import { CloudinaryModule } from './cloudinary/cloudinary.module';
     PaymentModule,
     CertificateModule,
     CloudinaryModule,
+    NewsletterModule,
   ],
 
   providers: [

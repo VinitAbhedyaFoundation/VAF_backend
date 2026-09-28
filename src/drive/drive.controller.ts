@@ -24,6 +24,7 @@ import { DriveService } from './drive.service';
 import { CreateDriveDto } from './dto/create-drive.dto';
 import { CreateDriveLocationDto } from './dto/drive-location.dto';
 import { UpdateDriveDto } from './dto/update-drive.dto';
+import { CompleteDriveDto } from './dto/complete-drive.dto';
 
 @ApiTags('Drive')
 @Controller('drive')
@@ -152,14 +153,18 @@ export class DriveController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin, Role.SuperAdmin)
   @Patch(':id/complete')
-  @ApiOperation({
-    summary: 'Mark drive as completed',
-    description: 'Admin only',
-  })
-  completeDrive(
-    @Param('id', ParseIntPipe)
-    id: number,
-  ) {
-    return this.driveService.completeDrive(id);
-  }
+@ApiOperation({
+  summary: 'Mark drive as completed',
+  description: 'Admin only',
+})
+completeDrive(
+  @Param('id', ParseIntPipe)
+  id: number,
+  @Body() dto: CompleteDriveDto,
+) {
+  return this.driveService.completeDrive(
+    id,
+    dto.totalWasteKg,
+  );
+}
 }

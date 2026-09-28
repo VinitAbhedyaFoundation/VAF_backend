@@ -46,9 +46,7 @@ export class DriveService {
     try {
       const parsedDate = new Date(date);
 
-      if (
-        isNaN(parsedDate.getTime())
-      ) {
+      if (isNaN(parsedDate.getTime())) {
         throw new BadRequestException(
           'Invalid date',
         );
@@ -58,56 +56,53 @@ export class DriveService {
         this.generateSecureToken();
 
       const drive =
-        await this.databaseService.drive.create(
-          {
-            data: {
-              title,
-              date: parsedDate,
-              totalHours,
-              temporaryToken,
+        await this.databaseService.drive.create({
+          data: {
+            title,
+            date: parsedDate,
+            totalHours,
+            temporaryToken,
 
-              driveLocation: {
-                connectOrCreate: {
-                  where: {
-                    location,
-                  },
-
-                  create: {
-                    location,
-                  },
+            driveLocation: {
+              connectOrCreate: {
+                where: {
+                  location,
                 },
-              },
-            },
 
-            include: {
-              driveLocation: {
-                select: {
-                  location: true,
+                create: {
+                  location,
                 },
               },
             },
           },
-        );
+
+          include: {
+            driveLocation: {
+              select: {
+                location: true,
+              },
+            },
+          },
+        });
 
       this.logger.log(
         `Drive created: ${drive.id}`,
       );
 
       return {
-        message:
-          'Drive Created Successfully',
+        message: 'Drive Created Successfully',
         drive,
       };
     } catch (error) {
-      if (
-        error instanceof BadRequestException
-      ) {
+      if (error instanceof BadRequestException) {
         throw error;
       }
 
       this.logger.error(
         'Create drive failed',
-        error instanceof Error ? error.stack : String(error),
+        error instanceof Error
+          ? error.stack
+          : String(error),
       );
 
       throw new InternalServerErrorException(
@@ -125,19 +120,17 @@ export class DriveService {
   ) {
     try {
       const driveLocation =
-        await this.databaseService.driveLocation.create(
-          {
-            data: {
-              location:
-                createDriveLocationData.location,
-            },
-
-            select: {
-              id: true,
-              location: true,
-            },
+        await this.databaseService.driveLocation.create({
+          data: {
+            location:
+              createDriveLocationData.location,
           },
-        );
+
+          select: {
+            id: true,
+            location: true,
+          },
+        });
 
       this.logger.log(
         `Location created: ${driveLocation.id}`,
@@ -173,32 +166,29 @@ export class DriveService {
       const skip = (page - 1) * limit;
 
       const drives =
-        await this.databaseService.drive.findMany(
-          {
-            skip,
-            take: limit,
+        await this.databaseService.drive.findMany({
+          skip,
+          take: limit,
 
-            orderBy: {
-              id: 'asc',
+          orderBy: {
+            id: 'asc',
+          },
+
+          include: {
+            driveLocation: {
+              select: {
+                location: true,
+              },
             },
 
-            include: {
-              driveLocation: {
-                select: {
-                  location: true,
-                },
-              },
-
-              participations: {
-                select: {
-                  hours: true,
-                  waste: true,
-                  status: true,
-                },
+            participations: {
+              select: {
+                hours: true,
+                status: true,
               },
             },
           },
-        );
+        });
 
       return drives.map((drive) => {
         const approvedParticipations =
@@ -210,22 +200,22 @@ export class DriveService {
         const volunteerCount =
           approvedParticipations.length;
 
-        const wasteKg =
-          approvedParticipations.reduce(
-            (sum, participation) =>
-              sum + (participation.waste ?? 0),
-            0,
-          );
-
         return {
           id: drive.id,
           title: drive.title,
           date: drive.date,
           totalHours: drive.totalHours,
           volunteerCount,
-          wasteKg,
+
+          // Waste belongs to the drive itself.
+          wasteKg: drive.totalWasteKg ?? 0,
+          totalWasteKg:
+            drive.totalWasteKg ?? 0,
+
           location:
-            drive.driveLocation?.location || null,
+            drive.driveLocation?.location ||
+            null,
+
           completed: drive.completed,
         };
       });
@@ -256,21 +246,19 @@ export class DriveService {
 
       const skip = (page - 1) * limit;
 
-      return await this.databaseService.driveLocation.findMany(
-        {
-          skip,
-          take: limit,
+      return await this.databaseService.driveLocation.findMany({
+        skip,
+        take: limit,
 
-          orderBy: {
-            id: 'asc',
-          },
-
-          select: {
-            id: true,
-            location: true,
-          },
+        orderBy: {
+          id: 'asc',
         },
-      );
+
+        select: {
+          id: true,
+          location: true,
+        },
+      });
     } catch (error) {
       this.logger.error(
         'Fetch locations failed',
@@ -298,29 +286,26 @@ export class DriveService {
 
     try {
       const drive =
-        await this.databaseService.drive.findUnique(
-          {
-            where: {
-              id,
+        await this.databaseService.drive.findUnique({
+          where: {
+            id,
+          },
+
+          include: {
+            driveLocation: {
+              select: {
+                location: true,
+              },
             },
 
-            include: {
-              driveLocation: {
-                select: {
-                  location: true,
-                },
-              },
-
-              participations: {
-                select: {
-                  hours: true,
-                  waste: true,
-                  status: true,
-                },
+            participations: {
+              select: {
+                hours: true,
+                status: true,
               },
             },
           },
-        );
+        });
 
       if (!drive) {
         throw new BadRequestException(
@@ -333,14 +318,22 @@ export class DriveService {
         title: drive.title,
         date: drive.date,
         totalHours: drive.totalHours,
+
+        // Total waste collected for this drive.
+        totalWasteKg:
+          drive.totalWasteKg ?? 0,
+
+        wasteKg:
+          drive.totalWasteKg ?? 0,
+
         completed: drive.completed,
+
         location:
-          drive.driveLocation?.location ?? null,
+          drive.driveLocation?.location ??
+          null,
       };
     } catch (error) {
-      if (
-        error instanceof BadRequestException
-      ) {
+      if (error instanceof BadRequestException) {
         throw error;
       }
 
@@ -379,7 +372,6 @@ export class DriveService {
     } = updateDriveData;
 
     try {
-
       let parsedDate:
         | Date
         | undefined;
@@ -387,9 +379,7 @@ export class DriveService {
       if (date) {
         parsedDate = new Date(date);
 
-        if (
-          isNaN(parsedDate.getTime())
-        ) {
+        if (isNaN(parsedDate.getTime())) {
           throw new BadRequestException(
             'Invalid date',
           );
@@ -397,41 +387,39 @@ export class DriveService {
       }
 
       const drive =
-        await this.databaseService.drive.update(
-          {
-            where: {
-              id,
-            },
+        await this.databaseService.drive.update({
+          where: {
+            id,
+          },
 
-            data: {
-              title,
-              date: parsedDate,
-              totalHours,
+          data: {
+            title,
+            date: parsedDate,
+            totalHours,
 
-              ...(location && {
-                driveLocation: {
-                  connectOrCreate: {
-                    where: {
-                      location,
-                    },
+            ...(location && {
+              driveLocation: {
+                connectOrCreate: {
+                  where: {
+                    location,
+                  },
 
-                    create: {
-                      location,
-                    },
+                  create: {
+                    location,
                   },
                 },
-              }),
-            },
+              },
+            }),
+          },
 
-            include: {
-              driveLocation: {
-                select: {
-                  location: true,
-                },
+          include: {
+            driveLocation: {
+              select: {
+                location: true,
               },
             },
           },
-        );
+        });
 
       this.logger.log(
         `Drive updated: ${drive.id}`,
@@ -443,9 +431,7 @@ export class DriveService {
         drive,
       };
     } catch (error) {
-      if (
-        error instanceof BadRequestException
-      ) {
+      if (error instanceof BadRequestException) {
         throw error;
       }
 
@@ -470,9 +456,7 @@ export class DriveService {
     try {
       const parsedDate = new Date(date);
 
-      if (
-        isNaN(parsedDate.getTime())
-      ) {
+      if (isNaN(parsedDate.getTime())) {
         throw new BadRequestException(
           'Invalid date',
         );
@@ -486,35 +470,33 @@ export class DriveService {
       );
 
       const drives =
-        await this.databaseService.drive.findMany(
-          {
-            where: {
-              date: parsedDate,
+        await this.databaseService.drive.findMany({
+          where: {
+            date: parsedDate,
+          },
+
+          include: {
+            driveLocation: {
+              select: {
+                location: true,
+              },
             },
 
-            include: {
-              driveLocation: {
-                select: {
-                  location: true,
-                },
-              },
-
-              participations: {
-                select: {
-                  hours: true,
-                  waste: true,
-                  status: true,
-                },
+            participations: {
+              select: {
+                hours: true,
+                status: true,
               },
             },
           },
-        );
+        });
 
       if (!drives.length) {
         throw new BadRequestException(
           'No drives found',
         );
       }
+
       const today = new Date();
 
       return drives.map((drive) => {
@@ -526,13 +508,6 @@ export class DriveService {
 
         const volunteerCount =
           approvedParticipations.length;
-
-        const wasteKg =
-          approvedParticipations.reduce(
-            (sum, participation) =>
-              sum + (participation.waste ?? 0),
-            0,
-          );
 
         const hours =
           approvedParticipations.reduce(
@@ -546,22 +521,29 @@ export class DriveService {
           title: drive.title,
           date: drive.date,
           totalHours: drive.totalHours,
+
+          // Waste belongs to the drive.
+          wasteKg:
+            drive.totalWasteKg ?? 0,
+
+          totalWasteKg:
+            drive.totalWasteKg ?? 0,
+
           volunteerCount,
-          wasteKg,
           hours,
-          location: drive.driveLocation?.location ?? null,
+
+          location:
+            drive.driveLocation?.location ??
+            null,
 
           status:
             new Date(drive.date) < today
-              ? "Completed"
-              : "Upcoming",
+              ? 'Completed'
+              : 'Upcoming',
         };
       });
-
     } catch (error) {
-      if (
-        error instanceof BadRequestException
-      ) {
+      if (error instanceof BadRequestException) {
         throw error;
       }
 
@@ -600,7 +582,6 @@ export class DriveService {
             participations: {
               select: {
                 hours: true,
-                waste: true,
                 status: true,
               },
             },
@@ -613,6 +594,7 @@ export class DriveService {
         date: drive.date,
         totalHours: drive.totalHours,
         completed: drive.completed,
+
         location:
           drive.driveLocation?.location ||
           null,
@@ -626,18 +608,66 @@ export class DriveService {
       );
 
       throw new InternalServerErrorException(
-        'Failed to fetch upcoming drives',
+        'Failed to fetch drives',
       );
     }
   }
-  async completeDrive(id: number) {
-    return this.databaseService.drive.update({
-      where: {
-        id,
-      },
-      data: {
-        completed: true,
-      },
-    });
+
+  // =========================
+  // 🟢 COMPLETE DRIVE
+  // =========================
+
+  async completeDrive(
+    id: number,
+    totalWasteKg: number,
+  ) {
+    if (!id || id < 1) {
+      throw new BadRequestException(
+        'Invalid drive ID',
+      );
+    }
+
+    if (
+      totalWasteKg === undefined ||
+      totalWasteKg === null ||
+      Number.isNaN(Number(totalWasteKg)) ||
+      Number(totalWasteKg) < 0
+    ) {
+      throw new BadRequestException(
+        'Total waste collected must be a valid non-negative number',
+      );
+    }
+
+    try {
+      const drive =
+        await this.databaseService.drive.update({
+          where: {
+            id,
+          },
+
+          data: {
+            completed: true,
+            totalWasteKg:
+              Number(totalWasteKg),
+          },
+        });
+
+      this.logger.log(
+        `Drive completed: ${drive.id} | Total waste: ${drive.totalWasteKg} kg`,
+      );
+
+      return drive;
+    } catch (error) {
+      this.logger.error(
+        'Complete drive failed',
+        error instanceof Error
+          ? error.stack
+          : String(error),
+      );
+
+      throw new InternalServerErrorException(
+        'Failed to complete drive',
+      );
+    }
   }
 }
