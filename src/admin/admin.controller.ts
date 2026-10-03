@@ -1,6 +1,22 @@
-import { Controller, Get } from '@nestjs/common';
-import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  UseGuards,
+} from '@nestjs/common';
+
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
+
+import { Role } from '@prisma/client';
+
 import { AdminService } from './admin.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth-guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 
 interface DashboardStats {
   totalVolunteers: number;
@@ -14,6 +30,9 @@ export class AdminController {
     private readonly adminService: AdminService,
   ) {}
 
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin, Role.SuperAdmin)
   @Get('dashboard-stats')
   @ApiOperation({
     summary: 'Get dashboard statistics',
