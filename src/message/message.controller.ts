@@ -5,15 +5,20 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+
 import {
   ApiBearerAuth,
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
 
-import { JwtAuthGuard } from '../auth/guards/jwt-auth-guard';
-import { UserId } from '../common/decorator/user-id.decorator';
+import { Role } from '@prisma/client';
 
+import { JwtAuthGuard } from '../auth/guards/jwt-auth-guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+
+import { UserId } from '../common/decorator/user-id.decorator';
 import { MessageService } from './message.service';
 import { CreateMessageDto } from './dto/create-message.dto';
 
@@ -24,6 +29,9 @@ export class MessageController {
     private readonly messageService: MessageService,
   ) {}
 
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin, Role.SuperAdmin)
   @Get('all')
   @ApiOperation({
     summary: 'Get all messages',
