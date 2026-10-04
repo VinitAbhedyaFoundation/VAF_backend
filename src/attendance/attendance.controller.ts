@@ -35,12 +35,14 @@ export class AttendanceController {
 
   // Get all attendance records
   @Get('all')
-  @ApiOperation({
-    summary: 'Get all attendance records',
-  })
-  getAll() {
-    return this.service.getAll();
-  }
+@UseGuards(RolesGuard)
+@Roles('Admin', 'SuperAdmin')
+@ApiOperation({
+  summary: 'Get all attendance records',
+})
+getAll() {
+  return this.service.getAll();
+}
 
   // Join a drive
   @Post('join')
