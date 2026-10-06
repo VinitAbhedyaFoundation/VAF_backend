@@ -38,7 +38,7 @@ export class AdminService {
     private readonly userService: UserService,
     private readonly driveService: DriveService,
     private readonly databaseService: DatabaseService,
-  ) {}
+  ) { }
 
   async getDashboardStats(): Promise<DashboardStats> {
     try {
@@ -62,7 +62,9 @@ export class AdminService {
         : [];
 
       const totalVolunteers =
-        users.length;
+        users.filter(
+          (user) => user.role === 'User',
+        ).length;
 
       const totalDrives =
         Array.isArray(drives)

@@ -12,6 +12,7 @@ import {
 
 import { UserService } from './user.service';
 import { UserId } from '../common/decorator/user-id.decorator';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 import {
   ApiBearerAuth,
@@ -30,7 +31,7 @@ import { Role, Gender } from '@prisma/client';
 @ApiTags('User')
 @Controller('user')
 export class UserController {
-  constructor(private readonly userService: UserService) { }
+  constructor(private readonly userService: UserService) {}
 
   // =========================
   // USER DETAILS
@@ -43,6 +44,27 @@ export class UserController {
   @ApiOperation({ summary: 'Get current logged-in user details' })
   userDetail(@UserId() userId: number) {
     return this.userService.getUserById(userId);
+  }
+
+  // =========================
+  // ✏️ UPDATE CURRENT USER PROFILE
+  // =========================
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  @Patch('profile')
+  @ApiOperation({
+    summary: 'Update current volunteer profile',
+  })
+  updateProfile(
+    @UserId() userId: number,
+    @Body() updateProfileDto: UpdateProfileDto,
+  ) {
+    return this.userService.updateProfile(
+      userId,
+      updateProfileDto,
+    );
   }
 
   // =========================
@@ -73,16 +95,20 @@ export class UserController {
     return this.userService.getAllUsers();
   }
 
+  // =========================
+  // LEADERBOARD
+  // =========================
+
   @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.Admin, Role.SuperAdmin)
-@Get('leaderboard')
-@ApiOperation({
-  summary: 'Get top contributors',
-})
-getLeaderboard() {
-  return this.userService.getLeaderboard();
-}
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin, Role.SuperAdmin)
+  @Get('leaderboard')
+  @ApiOperation({
+    summary: 'Get top contributors',
+  })
+  getLeaderboard() {
+    return this.userService.getLeaderboard();
+  }
 
   // =========================
   // SEARCH USERS
@@ -123,47 +149,46 @@ getLeaderboard() {
     return this.userService.suspendUser(Number(id));
   }
 
-    // =========================
+  // =========================
   // CREATE VOLUNTEER
   // =========================
 
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.SuperAdmin)
-@Post('create-volunteer')
-@ApiOperation({
-  summary: 'Create volunteer (SuperAdmin only)',
-})
-createVolunteer(
-  @Body()
-  body: {
-    name: string;
-    email: string;
-    city?: string;
-    gender: Gender;
-    password: string;
-  },
-) {
-  return this.userService.createVolunteer(body);
-}
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.SuperAdmin)
+  @Post('create-volunteer')
+  @ApiOperation({
+    summary: 'Create volunteer (SuperAdmin only)',
+  })
+  createVolunteer(
+    @Body()
+    body: {
+      name: string;
+      email: string;
+      city?: string;
+      gender: Gender;
+      password: string;
+    },
+  ) {
+    return this.userService.createVolunteer(body);
+  }
 
   // =========================
   // DELETE USER
   // =========================
+
   @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.SuperAdmin)
-@Delete(':id')
-@ApiOperation({
-  summary: 'Delete user/admin',
-})
-deleteUser(
-  @Param('id') id: string,
-) {
-  return this.userService.deleteUser(
-    Number(id),
-  );
-}
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.SuperAdmin)
+  @Delete(':id')
+  @ApiOperation({
+    summary: 'Delete user/admin',
+  })
+  deleteUser(@Param('id') id: string) {
+    return this.userService.deleteUser(
+      Number(id),
+    );
+  }
 
   // =========================
   // PROMOTE USER
@@ -175,84 +200,83 @@ deleteUser(
   @Patch('promote/:id')
   @ApiOperation({ summary: 'Promote user to admin' })
   promoteUser(@Param('id') id: string) {
-    return this.userService.promoteUser(Number(id));
+    return this.userService.promoteUser(
+      Number(id),
+    );
   }
 
   // =========================
-// MARK ATTENDANCE
-// =========================
+  // MARK ATTENDANCE
+  // =========================
 
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.User)
-@Post('attendance')
-@ApiOperation({ summary: 'Submit attendance request' })
-markAttendance(
-  @Body() markAttendanceData: MarkAttendanceDto,
-  @UserId() userId: number,
-) {
-  return this.userService.markAttendance(
-    markAttendanceData.temporaryToken,
-    userId,
-  );
-}
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.User)
+  @Post('attendance')
+  @ApiOperation({ summary: 'Submit attendance request' })
+  markAttendance(
+    @Body() markAttendanceData: MarkAttendanceDto,
+    @UserId() userId: number,
+  ) {
+    return this.userService.markAttendance(
+      markAttendanceData.temporaryToken,
+      userId,
+    );
+  }
 
-// =========================
-// GET PENDING ATTENDANCE
-// =========================
+  // =========================
+  // GET PENDING ATTENDANCE
+  // =========================
 
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.Admin, Role.SuperAdmin)
-@Get('attendance/pending')
-@ApiOperation({ summary: 'Get pending attendance records' })
-getPendingAttendance() {
-  return this.userService.getPendingAttendance();
-}
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin, Role.SuperAdmin)
+  @Get('attendance/pending')
+  @ApiOperation({ summary: 'Get pending attendance records' })
+  getPendingAttendance() {
+    return this.userService.getPendingAttendance();
+  }
 
-// =========================
-// APPROVE ATTENDANCE
-// =========================
+  // =========================
+  // APPROVE ATTENDANCE
+  // =========================
 
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.Admin, Role.SuperAdmin)
-@Patch('attendance/approve/:id')
-@ApiOperation({
-  summary: 'Approve attendance',
-})
-approveAttendance(
-  @Param('id') id: string,
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin, Role.SuperAdmin)
+  @Patch('attendance/approve/:id')
+  @ApiOperation({
+    summary: 'Approve attendance',
+  })
+  approveAttendance(
+    @Param('id') id: string,
+    @Body()
+    body: {
+      hours?: number;
+      waste?: number;
+    },
+  ) {
+    return this.userService.approveAttendance(
+      Number(id),
+      body.hours,
+      body.waste,
+    );
+  }
 
-  @Body()
-  body: {
-    hours?: number;
-    waste?: number;
-  },
-) {
-  return this.userService.approveAttendance(
-    Number(id),
-    body.hours,
-    body.waste,
-  );
-}
+  // =========================
+  // REJECT ATTENDANCE
+  // =========================
 
-// =========================
-// REJECT ATTENDANCE
-// =========================
-
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.Admin, Role.SuperAdmin)
-@Patch('attendance/reject/:id')
-@ApiOperation({ summary: 'Reject attendance' })
-rejectAttendance(
-  @Param('id') id: string,
-) {
-  return this.userService.rejectAttendance(
-    Number(id),
-  );
-}
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin, Role.SuperAdmin)
+  @Patch('attendance/reject/:id')
+  @ApiOperation({ summary: 'Reject attendance' })
+  rejectAttendance(@Param('id') id: string) {
+    return this.userService.rejectAttendance(
+      Number(id),
+    );
+  }
 
   // =========================
   // DRIVES ATTENDED
