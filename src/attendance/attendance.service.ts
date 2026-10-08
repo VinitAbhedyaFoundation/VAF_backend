@@ -2,15 +2,18 @@ import {
   BadRequestException,
   Injectable,
 } from '@nestjs/common';
+import {
+  AttendanceStatus,
+  Prisma,
+} from '@prisma/client';
 
-import { Prisma } from '@prisma/client';
 import { DatabaseService } from '../database/database.service';
 
 @Injectable()
 export class AttendanceService {
   constructor(
-    private db: DatabaseService,
-  ) { }
+    private readonly db: DatabaseService,
+  ) {}
 
   // 🔹 GET ALL ATTENDANCE
   async getAll() {
@@ -56,22 +59,27 @@ export class AttendanceService {
     });
   }
 
-  // JOIN A DRIVE
-  async joinDrive(userId: number, driveId: number) {
-    const drive = await this.db.drive.findUnique({
-      where: {
-        id: driveId,
-      },
-      select: {
-        completed: true,
-      },
-    });
+  // 🔹 JOIN A DRIVE
+  async joinDrive(
+    userId: number,
+    driveId: number,
+  ) {
+    const drive =
+      await this.db.drive.findUnique({
+        where: {
+          id: driveId,
+        },
+        select: {
+          completed: true,
+        },
+      });
 
     if (!drive) {
       throw new BadRequestException(
         'Drive not found',
       );
     }
+
     if (drive.completed) {
       throw new BadRequestException(
         'Cannot join a completed drive',
@@ -93,18 +101,20 @@ export class AttendanceService {
         'Already joined this drive',
       );
     }
+
     try {
       return await this.db.participation.create({
         data: {
           userId,
           driveId,
-          status: 'Registered',
+          status: AttendanceStatus.Registered,
           attendanceMarked: false,
         },
       });
     } catch (error) {
       if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error instanceof
+          Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2002'
       ) {
         throw new BadRequestException(
@@ -121,21 +131,22 @@ export class AttendanceService {
     userId: number,
     driveId: number,
   ) {
-
-    const drive = await this.db.drive.findUnique({
-      where: {
-        id: driveId,
-      },
-      select: {
-        completed: true,
-      },
-    });
+    const drive =
+      await this.db.drive.findUnique({
+        where: {
+          id: driveId,
+        },
+        select: {
+          completed: true,
+        },
+      });
 
     if (!drive) {
       throw new BadRequestException(
         'Drive not found',
       );
     }
+
     if (!drive.completed) {
       throw new BadRequestException(
         'Attendance can only be marked after the drive is completed',
@@ -150,6 +161,10 @@ export class AttendanceService {
             driveId,
           },
         },
+        select: {
+          status: true,
+          attendanceMarked: true,
+        },
       });
 
     if (!participation) {
@@ -158,7 +173,10 @@ export class AttendanceService {
       );
     }
 
-    if (participation.status !== 'Registered') {
+    if (
+      participation.status !==
+      AttendanceStatus.Registered
+    ) {
       throw new BadRequestException(
         'Attendance cannot be marked in the current state',
       );
@@ -169,11 +187,12 @@ export class AttendanceService {
         where: {
           userId,
           driveId,
+          status: AttendanceStatus.Registered,
           attendanceMarked: false,
         },
         data: {
           attendanceMarked: true,
-          status: 'Pending',
+          status: AttendanceStatus.Pending,
         },
       });
 
@@ -184,21 +203,47 @@ export class AttendanceService {
     }
 
     return {
-      message: 'Attendance submitted successfully',
+      message:
+        'Attendance submitted successfully',
     };
   }
 
-  // 🔹 APPROVE ATTENDANCE
   // 🔹 APPROVE ATTENDANCE
   async approveAttendance(
     id: number,
     hours: number,
     waste: number,
   ) {
+    const result =
+      await this.db.participation.updateMany({
+        where: {
+          id,
+          status: AttendanceStatus.Pending,
+        },
+        data: {
+          status: AttendanceStatus.Approved,
+          attendanceMarked: true,
+          hours,
+          waste,
+        },
+      });
+
+    if (result.count === 1) {
+      return {
+        message:
+          'Attendance approved successfully',
+      };
+    }
+
+    // Only query the record when the
+    // atomic update did not succeed.
     const attendance =
       await this.db.participation.findUnique({
         where: {
           id,
+        },
+        select: {
+          status: true,
         },
       });
 
@@ -208,34 +253,18 @@ export class AttendanceService {
       );
     }
 
-    if (attendance.status === 'Approved') {
+    if (
+      attendance.status ===
+      AttendanceStatus.Approved
+    ) {
       throw new BadRequestException(
         'Attendance already approved',
       );
     }
 
-    if (attendance.status !== 'Pending') {
-      throw new BadRequestException(
-        'Attendance is not pending approval',
-      );
-    }
-
-    await this.db.participation.update({
-      where: {
-        id,
-      },
-      data: {
-        status: 'Approved',
-        attendanceMarked: true,
-        hours,
-        waste,
-      },
-    });
-
-    return {
-      message: 'Attendance approved successfully',
-    };
-
+    throw new BadRequestException(
+      'Attendance is not pending approval',
+    );
   }
 
   // 🔹 BULK APPROVE ATTENDANCE
@@ -251,6 +280,20 @@ export class AttendanceService {
       );
     }
 
+    // Defensive protection against duplicate IDs.
+    const uniqueIds = new Set(
+      participationIds,
+    );
+
+    if (
+      uniqueIds.size !==
+      participationIds.length
+    ) {
+      throw new BadRequestException(
+        'Duplicate attendance records selected',
+      );
+    }
+
     const participations =
       await this.db.participation.findMany({
         where: {
@@ -258,10 +301,11 @@ export class AttendanceService {
             in: participationIds,
           },
         },
-        include: {
+        select: {
+          id: true,
+          status: true,
           drive: {
             select: {
-              id: true,
               totalHours: true,
             },
           },
@@ -277,12 +321,16 @@ export class AttendanceService {
       );
     }
 
-    // Registered and Pending records can be approved
+    // Preserve the existing business rule:
+    // Registered and Pending records can be
+    // approved through the bulk workflow.
     const invalidRecords =
       participations.filter(
         (participation) =>
-          participation.status !== 'Registered' &&
-          participation.status !== 'Pending',
+          participation.status !==
+            AttendanceStatus.Registered &&
+          participation.status !==
+            AttendanceStatus.Pending,
       );
 
     if (invalidRecords.length > 0) {
@@ -294,17 +342,30 @@ export class AttendanceService {
     await this.db.$transaction(
       async (tx) => {
         for (const participation of participations) {
-          await tx.participation.update({
-            where: {
-              id: participation.id,
-            },
-            data: {
-              status: 'Approved',
-              attendanceMarked: true,
-              hours:
-                participation.drive.totalHours,
-            },
-          });
+          const result =
+            await tx.participation.updateMany({
+              where: {
+                id: participation.id,
+                status: {
+                  in: [
+                    AttendanceStatus.Registered,
+                    AttendanceStatus.Pending,
+                  ],
+                },
+              },
+              data: {
+                status: AttendanceStatus.Approved,
+                attendanceMarked: true,
+                hours:
+                  participation.drive.totalHours,
+              },
+            });
+
+          if (result.count !== 1) {
+            throw new BadRequestException(
+              'One or more attendance records changed before approval',
+            );
+          }
         }
       },
     );
@@ -312,17 +373,25 @@ export class AttendanceService {
     return {
       message:
         'Attendance approved successfully',
-      approvedCount: participations.length,
+      approvedCount:
+        participations.length,
     };
   }
 
-  async scanAttendance(participationId: number) {
+  // 🔹 SCAN ATTENDANCE
+  async scanAttendance(
+    participationId: number,
+  ) {
     const participation =
       await this.db.participation.findUnique({
         where: {
           id: participationId,
         },
-        include: {
+        select: {
+          id: true,
+          attendanceMarked: true,
+          status: true,
+
           user: {
             select: {
               id: true,
@@ -330,7 +399,14 @@ export class AttendanceService {
               ploggerId: true,
             },
           },
-          drive: true,
+
+          drive: {
+            select: {
+              id: true,
+              title: true,
+              completed: true,
+            },
+          },
         },
       });
 
@@ -352,33 +428,52 @@ export class AttendanceService {
       );
     }
 
-    if (participation.status !== 'Registered') {
+    if (
+      participation.status !==
+      AttendanceStatus.Registered
+    ) {
       throw new BadRequestException(
         'Volunteer is not eligible for attendance.',
       );
     }
 
-    await this.db.participation.update({
-      where: {
-        id: participationId,
-      },
-      data: {
-        attendanceMarked: true,
-        status: 'Approved',
-      },
-    });
+    // Atomic state transition.
+    const result =
+      await this.db.participation.updateMany({
+        where: {
+          id: participationId,
+          status: AttendanceStatus.Registered,
+          attendanceMarked: false,
+        },
+        data: {
+          attendanceMarked: true,
+          status: AttendanceStatus.Approved,
+        },
+      });
+
+    if (result.count === 0) {
+      throw new BadRequestException(
+        'Attendance is no longer available for this volunteer.',
+      );
+    }
 
     return {
       success: true,
-      message: 'Attendance marked successfully',
+      message:
+        'Attendance marked successfully',
+
       volunteer: {
         id: participation.user.id,
         name: participation.user.name,
-        ploggerId: participation.user.ploggerId,
+        ploggerId:
+          participation.user.ploggerId,
       },
+
       drive: {
         id: participation.drive.id,
-        title: participation.drive.title ?? 'Drive',
+        title:
+          participation.drive.title ??
+          'Drive',
       },
     };
   }
