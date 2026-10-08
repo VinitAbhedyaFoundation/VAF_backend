@@ -3,30 +3,10 @@ import {
   InternalServerErrorException,
   Logger,
 } from '@nestjs/common';
+import { AttendanceStatus, Role } from '@prisma/client';
 
-import { UserService } from '../user/user.service';
-import { DriveService } from '../drive/drive.service';
 import { DatabaseService } from '../database/database.service';
-
-interface DashboardStats {
-  totalVolunteers: number;
-  totalDrives: number;
-  totalHours: number;
-  wasteCollected: number;
-
-  chartData: {
-    name: string;
-    waste: number;
-    volunteers: number;
-  }[];
-
-  leaderboard: {
-    name: string;
-    kg: number;
-    drives: number;
-    rank: number;
-  }[];
-}
+import { DashboardStatsDto } from './dto/dashboard-stats.dto';
 
 @Injectable()
 export class AdminService {
@@ -35,172 +15,141 @@ export class AdminService {
   );
 
   constructor(
-    private readonly userService: UserService,
-    private readonly driveService: DriveService,
     private readonly databaseService: DatabaseService,
   ) {}
 
-  async getDashboardStats(): Promise<DashboardStats> {
+  async getDashboardStats(): Promise<DashboardStatsDto> {
     try {
       // =========================
-      // FETCH REQUIRED DATA
+      // BASIC DASHBOARD COUNTS
       // =========================
 
-      const [usersResult, drives] =
-        await Promise.all([
-          this.userService.getAllUsers(),
-          this.driveService.findAllDrives(
-            1,
-            1000,
-          ),
-        ]);
-
-      const users = Array.isArray(
-        usersResult?.users,
-      )
-        ? usersResult.users
-        : [];
-
-      const totalVolunteers =
-        users.length;
-
-      const totalDrives =
-        Array.isArray(drives)
-          ? drives.length
-          : 0;
-
-      // =========================
-      // GET APPROVED PARTICIPATIONS
-      // =========================
-
-      const approvedParticipations =
-        await this.databaseService.participation.findMany(
-          {
-            where: {
-              status: 'Approved',
-            },
-
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  name: true,
-                },
-              },
-
-              drive: {
-                select: {
-                  id: true,
-                  date: true,
-                  totalHours: true,
-                  totalWasteKg: true,
-                },
-              },
-            },
+      const [
+        totalVolunteers,
+        totalDrives,
+        totalHoursResult,
+        wasteCollectedResult,
+      ] = await Promise.all([
+        this.databaseService.user.count({
+          where: {
+            role: Role.User,
           },
-        );
+        }),
 
-      // =========================
-      // TOTAL HOURS
-      // =========================
+        this.databaseService.drive.count(),
+
+        this.databaseService.participation.aggregate({
+          where: {
+            status: AttendanceStatus.Approved,
+          },
+          _sum: {
+            hours: true,
+          },
+        }),
+
+        this.databaseService.drive.aggregate({
+          _sum: {
+            totalWasteKg: true,
+          },
+        }),
+      ]);
 
       const totalHours =
-        approvedParticipations.reduce(
-          (sum, participation) =>
-            sum +
-            (participation.hours ?? 0),
-          0,
-        );
-
-      // =========================
-      // TOTAL WASTE
-      // =========================
-      //
-      // Waste belongs to the DRIVE,
-      // not individual participations.
-      //
-      // Use the drives returned by
-      // DriveService, where totalWasteKg
-      // comes from Drive.totalWasteKg.
-      //
+        totalHoursResult._sum.hours ?? 0;
 
       const wasteCollected =
-        drives.reduce(
-          (sum, drive) =>
-            sum +
-            (drive.totalWasteKg ?? 0),
-          0,
-        );
+        wasteCollectedResult._sum.totalWasteKg ?? 0;
 
       // =========================
       // LEADERBOARD
       // =========================
       //
-      // Keep the existing individual
-      // participation-based calculation.
-      //
-      // This is separate from the
-      // overall drive waste metric.
+      // Aggregate approved participation
+      // waste per volunteer in the database.
       //
 
-      const leaderboardMap = new Map<
-        number,
-        {
-          name: string;
-          kg: number;
-          drives: number;
+      const leaderboardGroups =
+        await this.databaseService.participation.groupBy({
+          by: ['userId'],
+          where: {
+            status: AttendanceStatus.Approved,
+          },
+          _sum: {
+            waste: true,
+          },
+          _count: {
+            _all: true,
+          },
+        });
+
+      leaderboardGroups.sort((a, b) => {
+        const wasteA = a._sum.waste ?? 0;
+        const wasteB = b._sum.waste ?? 0;
+
+        if (wasteB !== wasteA) {
+          return wasteB - wasteA;
         }
-      >();
 
-      for (const participation of approvedParticipations) {
-        const userId =
-          participation.user.id;
+        return (
+          b._count._all -
+          a._count._all
+        );
+      });
 
-        const existing =
-          leaderboardMap.get(userId);
+      const topLeaderboard =
+        leaderboardGroups.slice(0, 5);
 
-        if (existing) {
-          existing.kg +=
-            participation.waste ?? 0;
+      const leaderboardUserIds =
+        topLeaderboard.map(
+          (entry) => entry.userId,
+        );
 
-          existing.drives += 1;
-        } else {
-          leaderboardMap.set(
-            userId,
-            {
-              name:
-                participation.user.name,
+      const leaderboardUsers =
+        leaderboardUserIds.length > 0
+          ? await this.databaseService.user.findMany(
+              {
+                where: {
+                  id: {
+                    in: leaderboardUserIds,
+                  },
+                },
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            )
+          : [];
 
-              kg:
-                participation.waste ?? 0,
-
-              drives: 1,
-            },
-          );
-        }
-      }
+      const leaderboardUserMap =
+        new Map(
+          leaderboardUsers.map((user) => [
+            user.id,
+            user.name,
+          ]),
+        );
 
       const leaderboard =
-        Array.from(
-          leaderboardMap.values(),
-        )
-          .sort((a, b) => {
-            if (b.kg !== a.kg) {
-              return b.kg - a.kg;
-            }
+        topLeaderboard.map(
+          (entry, index) => ({
+            name:
+              leaderboardUserMap.get(
+                entry.userId,
+              ) ?? 'Unknown User',
 
-            return (
-              b.drives - a.drives
-            );
-          })
-          .slice(0, 5)
-          .map((user, index) => ({
-            ...user,
-            rank: index + 1,
-          }));
+            kg:
+              entry._sum.waste ?? 0,
+
+            drives:
+              entry._count._all,
+
+            rank:
+              index + 1,
+          }),
+        );
 
       // =========================
-      // WEEKLY VELOCITY
+      // LAST 7 DAYS
       // =========================
 
       const now = new Date();
@@ -213,9 +162,6 @@ export class AdminService {
         }
       >();
 
-      // Create the last 7 days first
-      // so the chart still renders
-      // even when there is no data.
       for (let i = 6; i >= 0; i--) {
         const date = new Date(now);
 
@@ -241,28 +187,47 @@ export class AdminService {
         });
       }
 
-      // =========================
-      // CHART WASTE
-      // =========================
-      //
-      // Waste is now taken once per
-      // drive from totalWasteKg.
-      //
-      // Volunteers are still counted
-      // from approved participations.
-      //
+      const chartDates =
+        Array.from(chartMap.keys());
 
-      for (const drive of drives) {
-        if (!drive.completed) {
-          continue;
-        }
-
-        const driveDate = new Date(
-          drive.date,
+      const chartStartDate =
+        new Date(
+          `${chartDates[0]}T00:00:00`,
         );
 
+      const chartEndDate =
+        new Date(
+          `${chartDates[chartDates.length - 1]}T00:00:00`,
+        );
+
+      chartEndDate.setDate(
+        chartEndDate.getDate() + 1,
+      );
+
+      // =========================
+      // CHART DRIVES
+      // =========================
+
+      const recentDrives =
+        await this.databaseService.drive.findMany(
+          {
+            where: {
+              completed: true,
+              date: {
+                gte: chartStartDate,
+                lt: chartEndDate,
+              },
+            },
+            select: {
+              date: true,
+              totalWasteKg: true,
+            },
+          },
+        );
+
+      for (const drive of recentDrives) {
         const key =
-          driveDate
+          drive.date
             .toISOString()
             .slice(0, 10);
 
@@ -280,15 +245,38 @@ export class AdminService {
       // =========================
       // CHART VOLUNTEERS
       // =========================
+      //
+      // Count approved participations
+      // belonging to drives in the last 7 days.
+      //
 
-      for (const participation of approvedParticipations) {
-        const driveDate =
-          new Date(
-            participation.drive.date,
-          );
+      const recentParticipations =
+        await this.databaseService.participation.findMany(
+          {
+            where: {
+              status:
+                AttendanceStatus.Approved,
 
+              drive: {
+                date: {
+                  gte: chartStartDate,
+                  lt: chartEndDate,
+                },
+              },
+            },
+            select: {
+              drive: {
+                select: {
+                  date: true,
+                },
+              },
+            },
+          },
+        );
+
+      for (const participation of recentParticipations) {
         const key =
-          driveDate
+          participation.drive.date
             .toISOString()
             .slice(0, 10);
 

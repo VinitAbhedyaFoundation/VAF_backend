@@ -7,7 +7,13 @@ import {
 } from '@nestjs/common';
 
 import { DatabaseService } from '../database/database.service';
-import { Gender, Role, UserStatus } from '@prisma/client';
+import {
+  BloodGroup,
+  Gender,
+  Occupation,
+  Role,
+  UserStatus,
+} from '@prisma/client';
 
 @Injectable()
 export class UserService {
@@ -253,9 +259,25 @@ export class UserService {
             id: true,
             name: true,
             email: true,
+
+            // Profile information
+            phone: true,
+            parentNumber: true,
+            birthDate: true,
+            gender: true,
+            bloodGroup: true,
+            occupation: true,
+            highestQualification: true,
+            address: true,
+            city: true,
+            state: true,
+            collegeOrCompany: true,
+
+            // Account information
             role: true,
             ploggerId: true,
             status: true,
+            createdAt: true,
           },
         });
 
@@ -279,6 +301,134 @@ export class UserService {
 
       throw new InternalServerErrorException(
         'Failed to fetch user',
+      );
+    }
+  }
+
+  // =========================
+  // ✏️ UPDATE USER PROFILE
+  // =========================
+
+  async updateProfile(
+    userId: number,
+    data: {
+      name?: string;
+      birthDate?: string;
+      gender?: Gender;
+      bloodGroup?: BloodGroup;
+      phone?: string;
+      parentNumber?: string;
+      address?: string;
+      city?: string;
+      state?: string;
+      occupation?: Occupation;
+      highestQualification?: string;
+      collegeOrCompany?: string;
+    },
+  ) {
+    try {
+      const existingUser =
+        await this.databaseService.user.findUnique({
+          where: { id: userId },
+        });
+
+      if (!existingUser) {
+        throw new NotFoundException('User not found');
+      }
+
+      const updatedUser =
+        await this.databaseService.user.update({
+          where: { id: userId },
+          data: {
+            ...(data.name !== undefined && {
+              name: data.name,
+            }),
+
+            ...(data.birthDate !== undefined && {
+              birthDate: new Date(data.birthDate),
+            }),
+
+            ...(data.gender !== undefined && {
+              gender: data.gender,
+            }),
+
+            ...(data.bloodGroup !== undefined && {
+              bloodGroup: data.bloodGroup,
+            }),
+
+            ...(data.phone !== undefined && {
+              phone: data.phone,
+            }),
+
+            ...(data.parentNumber !== undefined && {
+              parentNumber: data.parentNumber,
+            }),
+
+            ...(data.address !== undefined && {
+              address: data.address,
+            }),
+
+            ...(data.city !== undefined && {
+              city: data.city,
+            }),
+
+            ...(data.state !== undefined && {
+              state: data.state,
+            }),
+
+            ...(data.occupation !== undefined && {
+              occupation: data.occupation,
+            }),
+
+            ...(data.highestQualification !== undefined && {
+              highestQualification:
+                data.highestQualification,
+            }),
+
+            ...(data.collegeOrCompany !== undefined && {
+              collegeOrCompany:
+                data.collegeOrCompany,
+            }),
+          },
+
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            parentNumber: true,
+            birthDate: true,
+            gender: true,
+            bloodGroup: true,
+            occupation: true,
+            highestQualification: true,
+            address: true,
+            city: true,
+            state: true,
+            collegeOrCompany: true,
+            role: true,
+            ploggerId: true,
+            status: true,
+            createdAt: true,
+          },
+        });
+
+      return {
+        message: 'Profile updated successfully',
+        user: updatedUser,
+      };
+    } catch (error: unknown) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+
+      this.logger.error(
+        'updateProfile error:',
+        this.getErrorDetails(error),
+      );
+
+      throw new InternalServerErrorException(
+        'Failed to update profile',
       );
     }
   }
@@ -421,27 +571,27 @@ export class UserService {
           totalDrives * 5;
 
         return {
-  id: user.id,
-  name: user.name,
-  email: user.email,
-  city: user.city,
-  gender: user.gender,
-  birthDate: user.birthDate,
-  createdAt: user.createdAt,
-  ploggerId: user.ploggerId,
-  role: user.role,
-  status: user.status,
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          city: user.city,
+          gender: user.gender,
+          birthDate: user.birthDate,
+          createdAt: user.createdAt,
+          ploggerId: user.ploggerId,
+          role: user.role,
+          status: user.status,
 
-  totalDrives,
-  drivesCount: totalDrives,
+          totalDrives,
+          drivesCount: totalDrives,
 
-  totalHours,
+          totalHours,
 
-  totalWaste,
-  wasteKg: totalWaste,
+          totalWaste,
+          wasteKg: totalWaste,
 
-  score,
-};
+          score,
+        };
       });
 
       return {
