@@ -1,12 +1,12 @@
 {
   "compilerOptions": {
-    "module": "Node16",
+    "module": "commonjs",
     "target": "ES2021",
 
     "rootDir": "./",
     "outDir": "./dist",
 
-    "moduleResolution": "Node16",
+    "moduleResolution": "node",
 
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
@@ -16,6 +16,7 @@
 
     "strict": true,
     "skipLibCheck": true,
+    "isolatedModules": true,
 
     "sourceMap": true,
 
