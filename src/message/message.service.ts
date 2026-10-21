@@ -1,29 +1,24 @@
+
 import {
   BadRequestException,
   Injectable,
   Logger,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { UserStatus } from '@prisma/client';
 
 import { DatabaseService } from '../database/database.service';
 import { MailService } from '../mail/mail.service';
-
 import { CreateMessageDto } from './dto/create-message.dto';
 
 @Injectable()
 export class MessageService {
-  private readonly logger = new Logger(
-    MessageService.name,
-  );
+  private readonly logger = new Logger(MessageService.name);
 
   constructor(
     private readonly db: DatabaseService,
     private readonly mailService: MailService,
   ) {}
-
-  // =========================
-  // 📨 GET ALL MESSAGES
-  // =========================
 
   async getAll() {
     return this.db.message.findMany({
@@ -42,38 +37,26 @@ export class MessageService {
     });
   }
 
-  // =========================
-  // 🔔 GET USER NOTIFICATIONS
-  // =========================
-
   async getNotifications(userId: number) {
     return this.db.notification.findMany({
-      where: {
-        userId,
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
     });
   }
 
-  // =========================
-  // 📧 SEND BROADCAST MESSAGE
-  // =========================
-
-  async send(body: CreateMessageDto) {
-    if (!body.subject || !body.content) {
+  async send(body: CreateMessageDto, senderId: number) {
+    if (!body.subject?.trim() || !body.content?.trim()) {
       throw new BadRequestException(
         'Subject and content are required',
       );
     }
 
-    // Only approved volunteers/users should receive
-    // broadcast messages.
+    if (!Number.isInteger(senderId) || senderId <= 0) {
+      throw new BadRequestException('Invalid sender ID');
+    }
+
     const approvedUsers = await this.db.user.findMany({
-      where: {
-        status: UserStatus.Approved,
-      },
+      where: { status: UserStatus.Approved },
       select: {
         id: true,
         email: true,
@@ -84,17 +67,16 @@ export class MessageService {
       ...new Set(
         approvedUsers
           .map((user) => user.email)
-          .filter(Boolean),
+          .filter((email): email is string => Boolean(email)),
       ),
     ];
 
-    if (!emails.length) {
+    if (emails.length === 0) {
       throw new BadRequestException(
-        'No approved volunteers available to send message',
+        'No approved volunteers with email addresses are available to receive this message',
       );
     }
 
-    // Send email to approved users only.
     try {
       await this.mailService.sendBulkMail(
         emails,
@@ -104,28 +86,28 @@ export class MessageService {
     } catch (error) {
       this.logger.error(
         'Email sending failed',
-        error instanceof Error
-          ? error.stack
-          : String(error),
+        error instanceof Error ? error.stack : String(error),
       );
 
-      throw new BadRequestException(
-        'Failed to send emails',
+      if (error instanceof ServiceUnavailableException) {
+        throw error;
+      }
+
+      throw new ServiceUnavailableException(
+        'Unable to send broadcast emails. Please try again later.',
       );
     }
 
-    // Save message and the number of approved recipients.
     const message = await this.db.message.create({
       data: {
         subject: body.subject,
         content: body.content,
-        senderId: body.senderId,
+        senderId,
         recipients: approvedUsers.length,
         isBroadcast: true,
       },
     });
 
-    // Create in-app notifications for approved users.
     await this.db.notification.createMany({
       data: approvedUsers.map((user) => ({
         userId: user.id,
