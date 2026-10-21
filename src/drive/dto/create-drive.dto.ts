@@ -2,11 +2,11 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   IsDate,
+  IsInt,
   IsNotEmpty,
-  IsNumber,
   IsPositive,
   IsString,
-  MaxLength,
+  MaxLength
 } from 'class-validator';
 
 export class CreateDriveDto {
@@ -43,7 +43,7 @@ export class CreateDriveDto {
     description: 'Total volunteering hours',
   })
   @Type(() => Number)
-  @IsNumber()
+  @IsInt()
   @IsPositive()
   @IsNotEmpty()
   totalHours!: number;

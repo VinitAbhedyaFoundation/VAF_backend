@@ -31,7 +31,7 @@ import { CompleteDriveDto } from './dto/complete-drive.dto';
 export class DriveController {
   constructor(
     private readonly driveService: DriveService,
-  ) {}
+  ) { }
 
   // ================= ADMIN ROUTES =================
 
@@ -153,18 +153,17 @@ export class DriveController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin, Role.SuperAdmin)
   @Patch(':id/complete')
-@ApiOperation({
-  summary: 'Mark drive as completed',
-  description: 'Admin only',
-})
-completeDrive(
-  @Param('id', ParseIntPipe)
-  id: number,
-  @Body() dto: CompleteDriveDto,
-) {
-  return this.driveService.completeDrive(
-    id,
-    dto.totalWasteKg,
-  );
-}
+  @ApiOperation({
+    summary: 'Mark drive as completed',
+    description: 'Admin only',
+  })
+  completeDrive(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: CompleteDriveDto,
+  ) {
+    return this.driveService.completeDrive(
+      id,
+      dto.totalWasteKg,
+    );
+  }
 }
