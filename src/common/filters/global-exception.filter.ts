@@ -1,3 +1,4 @@
+
 import {
   ArgumentsHost,
   Catch,
@@ -20,7 +21,6 @@ export class GlobalExceptionFilter
     host: ArgumentsHost,
   ): void {
     const ctx = host.switchToHttp();
-
     const request = ctx.getRequest();
     const response = ctx.getResponse();
 
@@ -32,15 +32,27 @@ export class GlobalExceptionFilter
     let message: string | string[];
 
     if (exception instanceof HttpException) {
-      const exceptionResponse =
-        exception.getResponse();
+      const exceptionResponse = exception.getResponse();
 
       if (
         typeof exceptionResponse === 'object' &&
         exceptionResponse !== null &&
         'message' in exceptionResponse
       ) {
-        message = (exceptionResponse as any).message;
+        const responseMessage = (
+          exceptionResponse as { message?: unknown }
+        ).message;
+
+        message =
+          typeof responseMessage === 'string' ||
+          (
+            Array.isArray(responseMessage) &&
+            responseMessage.every(
+              (item) => typeof item === 'string',
+            )
+          )
+            ? responseMessage
+            : exception.message;
       } else {
         message = exception.message;
       }

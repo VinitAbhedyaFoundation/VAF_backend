@@ -34,11 +34,11 @@ export class JwtStrategy extends PassportStrategy(
       'JWT_SECRET_KEY',
     );
 
-    if (!secret) {
-      throw new Error(
-        'JWT_SECRET_KEY is missing',
-      );
-    }
+    if (!secret || secret.trim().length < 32) {
+  throw new Error(
+    'JWT_SECRET_KEY is missing or too short',
+  );
+}
 
     super({
       jwtFromRequest:

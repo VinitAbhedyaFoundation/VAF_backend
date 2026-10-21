@@ -35,7 +35,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
-  ) {}
+  ) { }
 
   @Post('register')
   @ApiOperation({
@@ -52,8 +52,8 @@ export class AuthController {
   }
 
   @Post('login')
-@HttpCode(HttpStatus.OK)
-@ApiOperation({
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
     summary: 'User login',
     description:
       'Authenticate user and return JWT.',
@@ -112,15 +112,15 @@ export class AuthController {
     id: number,
     @Body() updateAuthData: UpdateUserDto,
   ) {
-    return this.authService.update(
+    return this.authService.adminUpdateUser(
       updateAuthData,
       id,
     );
   }
 
   @Post('adminlogin')
-@HttpCode(HttpStatus.OK)
-@ApiOperation({
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
     summary: 'Admin login',
     description:
       'Authenticate admin and return JWT.',

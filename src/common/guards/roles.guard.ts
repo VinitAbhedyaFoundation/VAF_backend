@@ -22,11 +22,10 @@ const ROLE_HIERARCHY: Record<Role, number> = {
 
 @Injectable()
 export class RolesGuard
-  implements CanActivate
-{
+  implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
-  ) {}
+  ) { }
 
   canActivate(
     context: ExecutionContext,
@@ -65,19 +64,19 @@ export class RolesGuard
       );
     }
 
-    const userLevel =
-      ROLE_HIERARCHY[user.role];
+    const userLevel = ROLE_HIERARCHY[user.role];
 
-    const hasAccess =
-      requiredRoles.some(
-        (role) =>
-          userLevel >= ROLE_HIERARCHY[role],
+    const hasAccess = requiredRoles.some((role) => {
+      const requiredLevel = ROLE_HIERARCHY[role];
+
+      return (
+        typeof requiredLevel === 'number' &&
+        userLevel >= requiredLevel
       );
+    });
 
     if (!hasAccess) {
-      throw new ForbiddenException(
-        'Access denied',
-      );
+      throw new ForbiddenException('Access denied');
     }
 
     return true;
