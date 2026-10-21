@@ -1,4 +1,6 @@
+
 import {
+  BadRequestException,
   Injectable,
   Logger,
 } from '@nestjs/common';
@@ -7,6 +9,7 @@ import {
   rgb,
   StandardFonts,
 } from 'pdf-lib';
+import { randomUUID } from 'crypto';
 
 import * as fs from 'fs';
 import * as path from 'path';
@@ -24,25 +27,43 @@ export class PdfService {
   ): Promise<string> {
     try {
       if (!fs.existsSync(templatePath)) {
-        throw new Error(
-          `Template not found: ${templatePath}`,
-        );
+        throw new Error(`Template not found: ${templatePath}`);
       }
 
       const templateBytes =
         await fs.promises.readFile(templatePath);
 
-      const pdfDoc =
-        await PDFDocument.create();
+      const isPng =
+        templateBytes.length >= 8 &&
+        templateBytes.subarray(0, 8).equals(
+          Buffer.from([
+            0x89, 0x50, 0x4e, 0x47,
+            0x0d, 0x0a, 0x1a, 0x0a,
+          ]),
+        );
 
-      const image =
-        await pdfDoc.embedPng(templateBytes);
+      const isJpeg =
+        templateBytes.length >= 3 &&
+        templateBytes[0] === 0xff &&
+        templateBytes[1] === 0xd8 &&
+        templateBytes[2] === 0xff;
 
-      const page =
-        pdfDoc.addPage([
-          image.width,
-          image.height,
-        ]);
+      if (!isPng && !isJpeg) {
+        throw new BadRequestException(
+          'Certificate template must be a PNG or JPEG image',
+        );
+      }
+
+      const pdfDoc = await PDFDocument.create();
+
+      const image = isPng
+        ? await pdfDoc.embedPng(templateBytes)
+        : await pdfDoc.embedJpg(templateBytes);
+
+      const page = pdfDoc.addPage([
+        image.width,
+        image.height,
+      ]);
 
       page.drawImage(image, {
         x: 0,
@@ -51,24 +72,19 @@ export class PdfService {
         height: image.height,
       });
 
-      const font =
-        await pdfDoc.embedFont(
-          StandardFonts.HelveticaBold,
-        );
+      const font = await pdfDoc.embedFont(
+        StandardFonts.HelveticaBold,
+      );
 
-      const name =
-        volunteerName.toUpperCase();
-
+      const name = volunteerName.toUpperCase();
       const fontSize = 30;
 
-      const textWidth =
-        font.widthOfTextAtSize(
-          name,
-          fontSize,
-        );
+      const textWidth = font.widthOfTextAtSize(
+        name,
+        fontSize,
+      );
 
-      const centerX =
-        (image.width - textWidth) / 2;
+      const centerX = (image.width - textWidth) / 2;
 
       page.drawText(name, {
         x: centerX,
@@ -78,15 +94,14 @@ export class PdfService {
         color: rgb(0, 0, 0),
       });
 
-      const issuedDate =
-        driveDate.toLocaleDateString(
-          'en-IN',
-          {
-            day: '2-digit',
-            month: 'short',
-            year: 'numeric',
-          },
-        );
+      const issuedDate = driveDate.toLocaleDateString(
+        'en-IN',
+        {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric',
+        },
+      );
 
       page.drawText(issuedDate, {
         x: 1235,
@@ -104,29 +119,21 @@ export class PdfService {
         color: rgb(0, 0.3, 0),
       });
 
-      const pdfBytes =
-        await pdfDoc.save();
+      const pdfBytes = await pdfDoc.save();
 
-      const tempDir =
-        path.join(process.cwd(), 'temp');
+      const tempDir = path.join(
+        process.cwd(),
+        'temp',
+      );
 
-      if (!fs.existsSync(tempDir)) {
-        await fs.promises.mkdir(
-          tempDir,
-          { recursive: true },
-        );
-      }
+      await fs.promises.mkdir(tempDir, {
+        recursive: true,
+      });
 
-      const fileName =
-        volunteerName
-          .replace(/\s+/g, '-')
-          .toLowerCase();
-
-      const outputPath =
-        path.join(
-          tempDir,
-          `${fileName}.pdf`,
-        );
+      const outputPath = path.join(
+        tempDir,
+        `${randomUUID()}.pdf`,
+      );
 
       await fs.promises.writeFile(
         outputPath,

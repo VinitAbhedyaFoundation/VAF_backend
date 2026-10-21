@@ -3,22 +3,19 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 
+import { Prisma } from '@prisma/client';
 import { DatabaseService } from '../database/database.service';
 import { PdfService } from './pdf.service';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { getTemplatePath } from './template.helper';
-
-import { v2 as cloudinary } from 'cloudinary';
-
 import * as fs from 'fs/promises';
 
 @Injectable()
 export class CertificateService {
-  private readonly logger = new Logger(
-    CertificateService.name,
-  );
+  private readonly logger = new Logger(CertificateService.name);
 
   constructor(
     private readonly db: DatabaseService,
@@ -26,34 +23,31 @@ export class CertificateService {
     private readonly cloudinaryService: CloudinaryService,
   ) { }
 
-  // =========================================================
-  // EXISTING CERTIFICATE GENERATION
-  // =========================================================
-
   async generateCertificates(driveId: number) {
     const drive = await this.db.drive.findUnique({
       where: { id: driveId },
+      include: { driveLocation: true },
     });
 
     if (!drive) {
       throw new NotFoundException('Drive not found');
     }
 
-    const participants =
-      await this.db.participation.findMany({
-        where: {
-          driveId,
-          status: 'Approved',
-        },
-        include: {
-          user: true,
-          drive: {
-            include: {
-              driveLocation: true,
-            },
-          },
-        },
-      });
+    if (!drive.completed) {
+      throw new BadRequestException(
+        'Certificates can only be generated for completed drives',
+      );
+    }
+
+    const participants = await this.db.participation.findMany({
+      where: {
+        driveId,
+        status: 'Approved',
+      },
+      include: {
+        user: true,
+      },
+    });
 
     let created = 0;
     let skipped = 0;
@@ -61,51 +55,42 @@ export class CertificateService {
 
     for (const participant of participants) {
       let pdfPath: string | null = null;
+      let uploadedPublicId: string | null = null;
 
       try {
-        const existingCertificate =
-          await this.db.certificate.findFirst({
-            where: {
+        const existing = await this.db.certificate.findUnique({
+          where: {
+            userId_driveId: {
               userId: participant.userId,
               driveId,
             },
-          });
+          },
+        });
 
-        if (existingCertificate) {
+        if (existing) {
           skipped++;
           continue;
         }
 
-        this.logger.log(
-          `Generating certificate for ${participant.user.name}`,
+        pdfPath = await this.pdfService.generateCertificate(
+          participant.user.name,
+          drive.title ?? 'Drive',
+          drive.date,
+          drive.driveLocation.location,
+          getTemplatePath(drive.title ?? 'Drive'),
         );
 
-        pdfPath =
-          await this.pdfService.generateCertificate(
-            participant.user.name,
-            participant.drive.title ?? 'Drive',
-            participant.drive.date,
-            participant.drive.driveLocation?.location ??
-            'Location Not Specified',
-            getTemplatePath(
-              participant.drive.title ?? 'Drive',
-            ),
-          );
+        const upload = await this.cloudinaryService.uploadFile(pdfPath);
 
-        const upload =
-          await this.cloudinaryService.uploadFile(
-            pdfPath,
-          );
+        uploadedPublicId = upload?.public_id ?? null;
 
-        if (!upload?.public_id) {
+        if (!upload?.public_id || !upload?.secure_url) {
           throw new Error(
-            'Cloudinary upload failed.',
+            'Cloudinary upload did not return a valid file URL',
           );
         }
 
-        const downloadUrl =
-          `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}` +
-          `/image/upload/fl_attachment/v${upload.version}/${upload.public_id}.${upload.format}`;
+        const downloadUrl = upload.secure_url;
 
         await this.db.certificate.create({
           data: {
@@ -115,29 +100,54 @@ export class CertificateService {
           },
         });
 
+        uploadedPublicId = null;
         created++;
 
         this.logger.log(
-          `Certificate generated successfully for ${participant.user.name}`,
+          `Certificate generated for user ${participant.userId}, drive ${driveId}`,
         );
+
       } catch (error) {
+        const isDuplicate =
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === 'P2002';
+
+        // Clean up any uploaded file if the database insert failed.
+        if (uploadedPublicId) {
+          try {
+            await this.cloudinaryService.deleteCertificate(
+              uploadedPublicId,
+            );
+          } catch (cleanupError) {
+            this.logger.error(
+              `Could not clean up uploaded certificate ${uploadedPublicId}`,
+              cleanupError instanceof Error
+                ? cleanupError.stack
+                : String(cleanupError),
+            );
+          }
+        }
+
+        if (isDuplicate) {
+          skipped++;
+          continue;
+        }
+
         failed++;
 
         this.logger.error(
-          `Failed to generate certificate for User ID: ${participant.userId}`,
-          error instanceof Error
-            ? error.stack
-            : String(error),
+          `Certificate generation failed for user ${participant.userId}, drive ${driveId}`,
+          error instanceof Error ? error.stack : String(error),
         );
-
-        continue;
-      } finally {
+      }
+      finally {
         if (pdfPath) {
           try {
             await fs.unlink(pdfPath);
-          } catch {
+          } catch (error) {
             this.logger.warn(
-              `Unable to delete temporary PDF: ${pdfPath}`,
+              `Unable to remove temporary PDF ${pdfPath}: ${error instanceof Error ? error.message : String(error)
+              }`,
             );
           }
         }
@@ -147,9 +157,7 @@ export class CertificateService {
     if (created > 0) {
       await this.db.drive.update({
         where: { id: driveId },
-        data: {
-          certificateIssued: true,
-        },
+        data: { certificateIssued: true },
       });
     }
 
@@ -158,47 +166,31 @@ export class CertificateService {
     );
 
     return {
-      message: 'Certificates generated successfully',
+      message: 'Certificate generation completed',
       created,
       skipped,
       failed,
     };
   }
 
-  // =========================================================
-  // GET LOGGED-IN USER CERTIFICATES
-  // =========================================================
-
   async getMyCertificates(userId: number) {
     return this.db.certificate.findMany({
-      where: {
-        userId,
-      },
-      include: {
-        drive: true,
-      },
-      orderBy: {
-        issuedAt: 'desc',
-      },
+      where: { userId },
+      include: { drive: true },
+      orderBy: { issuedAt: 'desc' },
     });
   }
 
-  // =========================================================
-  // UPLOAD CERTIFICATE TEMPLATE
-  // =========================================================
-
   async uploadTemplate(
-  file: {
-    buffer: Buffer;
-    originalname: string;
-    mimetype: string;
-  },
-  name?: string,
-) {
+    file: {
+      buffer: Buffer;
+      originalname: string;
+      mimetype: string;
+    },
+    name?: string,
+  ) {
     if (!file) {
-      throw new BadRequestException(
-        'Template file is required',
-      );
+      throw new BadRequestException('Template file is required');
     }
 
     const templateName =
@@ -206,117 +198,86 @@ export class CertificateService {
       file.originalname.replace(/\.[^/.]+$/, '');
 
     if (!templateName) {
-      throw new BadRequestException(
-        'Template name is required',
+      throw new BadRequestException('Template name is required');
+    }
+
+    const upload = await this.cloudinaryService.uploadTemplateBuffer(
+      file.buffer,
+      file.originalname,
+    );
+
+    if (!upload?.secure_url || !upload?.public_id) {
+      throw new ServiceUnavailableException(
+        'Cloudinary did not confirm the template upload',
       );
     }
 
     try {
-      this.logger.log(
-        `Uploading certificate template: ${templateName}`,
-      );
+      const template = await this.db.certificateTemplate.create({
+        data: {
+          name: templateName,
+          fileUrl: upload.secure_url,
+          publicId: upload.public_id,
+        },
+      });
 
-      const upload =
-        await this.cloudinaryService.uploadTemplateBuffer(
-          file.buffer,
-          file.originalname,
-        );
-
-      if (
-        !upload?.secure_url ||
-        !upload?.public_id
-      ) {
-        throw new Error(
-          'Cloudinary upload failed',
-        );
-      }
-
-      const template =
-        await this.db.certificateTemplate.create({
-          data: {
-            name: templateName,
-            fileUrl: upload.secure_url,
-            publicId: upload.public_id,
-          },
-        });
-
-      this.logger.log(
-        `Certificate template uploaded successfully: ${template.name}`,
-      );
+      this.logger.log(`Certificate template uploaded: ${template.name}`);
 
       return {
-        message:
-          'Certificate template uploaded successfully',
+        message: 'Certificate template uploaded successfully',
         template,
       };
     } catch (error) {
-      this.logger.error(
-        'Failed to upload certificate template',
-        error instanceof Error
-          ? error.stack
-          : String(error),
-      );
+      // Compensate for a successful cloud upload if database persistence fails.
+      try {
+        await this.cloudinaryService.deleteTemplate(upload.public_id);
+      } catch (cleanupError) {
+        this.logger.error(
+          `Template upload cleanup failed for ${upload.public_id}`,
+          cleanupError instanceof Error
+            ? cleanupError.stack
+            : String(cleanupError),
+        );
+      }
 
       throw error;
     }
   }
 
-  // =========================================================
-  // GET ALL CERTIFICATE TEMPLATES
-  // =========================================================
-
   async getTemplates() {
     return this.db.certificateTemplate.findMany({
-      orderBy: {
-        createdAt: 'desc',
-      },
+      orderBy: { createdAt: 'desc' },
     });
   }
 
-  // =========================================================
-  // DELETE CERTIFICATE TEMPLATE
-  // =========================================================
-
   async deleteTemplate(id: number) {
-    const template =
-      await this.db.certificateTemplate.findUnique({
-        where: {
-          id,
-        },
-      });
+    const template = await this.db.certificateTemplate.findUnique({
+      where: { id },
+    });
 
     if (!template) {
-      throw new NotFoundException(
-        'Certificate template not found',
-      );
+      throw new NotFoundException('Certificate template not found');
     }
 
     try {
-      await cloudinary.uploader.destroy(
-        template.publicId,
-        {
-          resource_type: 'image',
-        },
+      await this.cloudinaryService.deleteTemplate(template.publicId);
+    } catch (error) {
+      this.logger.error(
+        `Template ${id} was retained because Cloudinary deletion failed`,
+        error instanceof Error ? error.stack : String(error),
       );
 
-      this.logger.log(
-        `Cloudinary template deleted: ${template.publicId}`,
-      );
-    } catch (error) {
-      this.logger.warn(
-        `Could not delete template from Cloudinary: ${template.publicId}`,
+      throw new ServiceUnavailableException(
+        'Could not delete the template from storage. The template record was retained; please retry.',
       );
     }
 
     await this.db.certificateTemplate.delete({
-      where: {
-        id,
-      },
+      where: { id },
     });
 
     return {
-      message:
-        'Certificate template deleted successfully',
+      message: 'Certificate template deleted successfully',
     };
   }
 }
