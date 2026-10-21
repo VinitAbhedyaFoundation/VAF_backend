@@ -11,7 +11,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
-import { Request } from 'express';
+import type { Request } from 'express';
 
 import { DashboardService } from './dashboard.service';
 
