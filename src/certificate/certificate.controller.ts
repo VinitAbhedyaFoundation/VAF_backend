@@ -1,3 +1,4 @@
+
 import {
   BadRequestException,
   Controller,
@@ -24,6 +25,14 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { CertificateService } from './certificate.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth-guard';
 
+const MAX_TEMPLATE_SIZE = 5 * 1024 * 1024;
+
+const ALLOWED_TEMPLATE_TYPES = [
+  'image/png',
+  'image/jpeg',
+  'image/jpg',
+];
+
 @ApiTags('Certificate')
 @ApiBearerAuth()
 @Controller('certificate')
@@ -31,60 +40,72 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth-guard';
 export class CertificateController {
   constructor(
     private readonly certificateService: CertificateService,
-  ) {}
+  ) { }
+
+  private assertAdmin(user: any): void {
+    if (!['Admin', 'SuperAdmin'].includes(user?.role)) {
+      throw new ForbiddenException(
+        'Only admins can perform this action',
+      );
+    }
+  }
 
   @Post('generate/:driveId')
   @ApiOperation({
-    summary: 'Generate certificates for a drive',
+    summary: 'Generate certificates for a completed drive',
     description:
-      'Generates certificates for all approved participants of the specified drive.',
+      'Generates certificates for eligible, approved participants of a completed drive. Admin and SuperAdmin access only.',
   })
   generateCertificates(
-    @Param('driveId', ParseIntPipe)
-    driveId: number,
+    @Param('driveId', ParseIntPipe) driveId: number,
+    @Req() req: any,
   ) {
-    return this.certificateService.generateCertificates(
-      driveId,
-    );
+    this.assertAdmin(req.user);
+
+    return this.certificateService.generateCertificates(driveId);
   }
 
   @Get('my-certificates')
   @ApiOperation({
     summary: 'Get logged-in user certificates',
     description:
-      'Returns all certificates of the authenticated user.',
+      'Returns all certificates belonging to the authenticated user.',
   })
-  getMyCertificates(
-    @Req() req: any,
-  ) {
-    return this.certificateService.getMyCertificates(
-      req.user.id,
-    );
+  getMyCertificates(@Req() req: any) {
+    const userId = req.user?.sub;
+
+    if (!userId) {
+      throw new ForbiddenException(
+        'Authenticated user ID is unavailable',
+      );
+    }
+
+    return this.certificateService.getMyCertificates(userId);
   }
 
   @Post('templates')
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: {
+        fileSize: MAX_TEMPLATE_SIZE,
+      },
+    }),
+  )
   @ApiOperation({
     summary: 'Upload certificate template',
+    description:
+      'Admin and SuperAdmin only. Accepts PNG or JPEG images up to 5 MB.',
   })
   async uploadTemplate(
     @UploadedFile()
-file: {
-  buffer: Buffer;
-  originalname: string;
-  mimetype: string;
-},
+    file: {
+      buffer: Buffer;
+      originalname: string;
+      mimetype: string;
+    },
     @Req() req: any,
   ) {
-    if (
-      !['Admin', 'SuperAdmin'].includes(
-        req.user.role,
-      )
-    ) {
-      throw new ForbiddenException(
-        'Only admins can upload certificate templates',
-      );
-    }
+    this.assertAdmin(req.user);
 
     if (!file) {
       throw new BadRequestException(
@@ -92,21 +113,41 @@ file: {
       );
     }
 
-    const allowedTypes = [
-      'image/png',
-      'image/jpeg',
-      'image/jpg',
-    ];
-
-    if (!allowedTypes.includes(file.mimetype)) {
+    if (!ALLOWED_TEMPLATE_TYPES.includes(file.mimetype)) {
       throw new BadRequestException(
         'Only PNG and JPG/JPEG certificate templates are supported',
       );
     }
 
+    const isPng =
+      file.buffer.length >= 8 &&
+      file.buffer.subarray(0, 8).equals(
+        Buffer.from([
+          0x89, 0x50, 0x4e, 0x47,
+          0x0d, 0x0a, 0x1a, 0x0a,
+        ]),
+      );
+
+    const isJpeg =
+      file.buffer.length >= 3 &&
+      file.buffer[0] === 0xff &&
+      file.buffer[1] === 0xd8 &&
+      file.buffer[2] === 0xff;
+
+    const signatureMatchesMimeType =
+      (file.mimetype === 'image/png' && isPng) ||
+      (['image/jpeg', 'image/jpg'].includes(file.mimetype) &&
+        isJpeg);
+
+    if (!signatureMatchesMimeType) {
+      throw new BadRequestException(
+        'The uploaded file content does not match a supported image type',
+      );
+    }
+
     return this.certificateService.uploadTemplate(
       file,
-      req.body.name,
+      req.body?.name,
     );
   }
 
@@ -115,15 +156,7 @@ file: {
     summary: 'Get certificate templates',
   })
   async getTemplates(@Req() req: any) {
-    if (
-      !['Admin', 'SuperAdmin'].includes(
-        req.user.role,
-      )
-    ) {
-      throw new ForbiddenException(
-        'Only admins can view certificate templates',
-      );
-    }
+    this.assertAdmin(req.user);
 
     return this.certificateService.getTemplates();
   }
@@ -133,22 +166,11 @@ file: {
     summary: 'Delete certificate template',
   })
   async deleteTemplate(
-    @Param('id', ParseIntPipe)
-    id: number,
+    @Param('id', ParseIntPipe) id: number,
     @Req() req: any,
   ) {
-    if (
-      !['Admin', 'SuperAdmin'].includes(
-        req.user.role,
-      )
-    ) {
-      throw new ForbiddenException(
-        'Only admins can delete certificate templates',
-      );
-    }
+    this.assertAdmin(req.user);
 
-    return this.certificateService.deleteTemplate(
-      id,
-    );
+    return this.certificateService.deleteTemplate(id);
   }
 }
