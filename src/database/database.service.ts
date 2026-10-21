@@ -10,8 +10,7 @@ import { PrismaClient } from '@prisma/client';
 @Injectable()
 export class DatabaseService
   extends PrismaClient
-  implements OnModuleInit, OnModuleDestroy
-{
+  implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(
     DatabaseService.name,
   );
@@ -55,7 +54,8 @@ export class DatabaseService
         retries--;
 
         this.logger.warn(
-          `Database connection failed. Retries left: ${retries}`,
+          `Database connection failed. Retries left: ${retries}. ${error instanceof Error ? error.message : String(error)
+          }`,
         );
 
         if (retries === 0) {
