@@ -1,3 +1,4 @@
+
 import {
   Injectable,
   ExecutionContext,
@@ -7,9 +8,7 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 
 @Injectable()
-export class JwtAuthGuard extends AuthGuard(
-  'jwt',
-) {
+export class JwtAuthGuard extends AuthGuard('jwt') {
   handleRequest(
     err: unknown,
     user: any,
@@ -19,7 +18,9 @@ export class JwtAuthGuard extends AuthGuard(
     if (err || !user) {
       throw (
         err ||
-        new UnauthorizedException()
+        new UnauthorizedException(
+          'Authentication required or token is invalid',
+        )
       );
     }
 
