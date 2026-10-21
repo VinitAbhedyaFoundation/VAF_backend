@@ -2,12 +2,15 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseIntPipe,
   Patch,
   Post,
   UseGuards,
 } from '@nestjs/common';
+
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -49,7 +52,8 @@ export class AuthController {
   }
 
   @Post('login')
-  @ApiOperation({
+@HttpCode(HttpStatus.OK)
+@ApiOperation({
     summary: 'User login',
     description:
       'Authenticate user and return JWT.',
@@ -115,7 +119,8 @@ export class AuthController {
   }
 
   @Post('adminlogin')
-  @ApiOperation({
+@HttpCode(HttpStatus.OK)
+@ApiOperation({
     summary: 'Admin login',
     description:
       'Authenticate admin and return JWT.',

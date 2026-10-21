@@ -23,6 +23,7 @@ import { JoinDriveDto } from './dto/join-drive.dto';
 import { MarkAttendanceDto } from './dto/mark-attendance.dto';
 import { ApproveAttendanceDto } from './dto/approve-attendance.dto';
 import { BulkApproveAttendanceDto } from './dto/bulk-approve-attendance.dto';
+import { Role } from '@prisma/client';
 
 @ApiTags('Attendance')
 @ApiBearerAuth()
@@ -35,12 +36,14 @@ export class AttendanceController {
 
   // Get all attendance records
   @Get('all')
-  @ApiOperation({
-    summary: 'Get all attendance records',
-  })
-  getAll() {
-    return this.service.getAll();
-  }
+@UseGuards(RolesGuard)
+@Roles(Role.Admin, Role.SuperAdmin)
+@ApiOperation({
+  summary: 'Get all attendance records',
+})
+getAll() {
+  return this.service.getAll();
+}
 
   // Join a drive
   @Post('join')
@@ -74,7 +77,7 @@ export class AttendanceController {
 
 @Post('scan')
 @UseGuards(RolesGuard)
-@Roles('Admin', 'SuperAdmin')
+@Roles(Role.Admin, Role.SuperAdmin)
 @ApiOperation({
   summary: 'Scan volunteer QR and mark attendance',
 })
@@ -89,7 +92,7 @@ scanAttendance(
   // Approve attendance (Admin/SuperAdmin)
   @Patch('approve/:id')
   @UseGuards(RolesGuard)
-  @Roles('Admin', 'SuperAdmin')
+ @Roles(Role.Admin, Role.SuperAdmin)
   @ApiOperation({
     summary: 'Approve attendance',
   })
@@ -110,7 +113,7 @@ scanAttendance(
     // Bulk approve attendance (Admin/SuperAdmin)
   @Patch('approve-bulk')
   @UseGuards(RolesGuard)
-  @Roles('Admin', 'SuperAdmin')
+  @Roles(Role.Admin, Role.SuperAdmin)
   @ApiOperation({
     summary: 'Bulk approve attendance',
   })

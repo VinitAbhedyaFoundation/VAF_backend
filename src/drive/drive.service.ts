@@ -565,53 +565,55 @@ export class DriveService {
   // =========================
 
   async getUpcomingDrives() {
-    try {
-      const drives =
-        await this.databaseService.drive.findMany({
-          orderBy: {
-            id: 'desc',
+  try {
+    const drives =
+      await this.databaseService.drive.findMany({
+        where: {
+          date: {
+            gte: new Date(),
           },
-
-          include: {
-            driveLocation: {
-              select: {
-                location: true,
-              },
-            },
-
-            participations: {
-              select: {
-                hours: true,
-                status: true,
-              },
+          completed: false,
+        },
+        orderBy: {
+          date: 'asc',
+        },
+        include: {
+          driveLocation: {
+            select: {
+              location: true,
             },
           },
-        });
+          participations: {
+            select: {
+              hours: true,
+              status: true,
+            },
+          },
+        },
+      });
 
-      return drives.map((drive) => ({
-        id: drive.id,
-        title: drive.title,
-        date: drive.date,
-        totalHours: drive.totalHours,
-        completed: drive.completed,
+    return drives.map((drive) => ({
+      id: drive.id,
+      title: drive.title,
+      date: drive.date,
+      totalHours: drive.totalHours,
+      completed: drive.completed,
+      location:
+        drive.driveLocation?.location || null,
+    }));
+  } catch (error) {
+    this.logger.error(
+      'Fetch upcoming drives failed',
+      error instanceof Error
+        ? error.stack
+        : String(error),
+    );
 
-        location:
-          drive.driveLocation?.location ||
-          null,
-      }));
-    } catch (error) {
-      this.logger.error(
-        'Fetch upcoming drives failed',
-        error instanceof Error
-          ? error.stack
-          : String(error),
-      );
-
-      throw new InternalServerErrorException(
-        'Failed to fetch drives',
-      );
-    }
+    throw new InternalServerErrorException(
+      'Failed to fetch drives',
+    );
   }
+}
 
   // =========================
   // 🟢 COMPLETE DRIVE
