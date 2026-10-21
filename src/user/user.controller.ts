@@ -1,18 +1,17 @@
 import {
-  Controller,
-  Get,
-  Post,
+  ArgumentMetadata,
+  BadRequestException,
   Body,
+  Controller,
   Delete,
+  Get,
   Param,
+  ParseIntPipe,
   Patch,
-  UseGuards,
+  Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
-
-import { UserService } from './user.service';
-import { UserId } from '../common/decorator/user-id.decorator';
-import { UpdateProfileDto } from './dto/update-profile.dto';
 
 import {
   ApiBearerAuth,
@@ -20,18 +19,40 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 
+import { Role, Gender } from '@prisma/client';
+
+import { UserService } from './user.service';
+import { UserId } from '../common/decorator/user-id.decorator';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import { MarkAttendanceDto } from './dto/mark-attendance.dto';
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth-guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
-
 import { Roles } from '../auth/decorators/roles.decorator';
-import { Role, Gender } from '@prisma/client';
+
+class PositiveIntPipe extends ParseIntPipe {
+  override async transform(
+    value: string,
+    metadata: ArgumentMetadata,
+  ): Promise<number> {
+    const id = await super.transform(value, metadata);
+
+    if (id <= 0) {
+      throw new BadRequestException(
+        'ID must be a positive integer',
+      );
+    }
+
+    return id;
+  }
+}
 
 @ApiTags('User')
 @Controller('user')
 export class UserController {
-  constructor(private readonly userService: UserService) {}
+  constructor(
+    private readonly userService: UserService,
+  ) { }
 
   // =========================
   // USER DETAILS
@@ -41,13 +62,15 @@ export class UserController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.User, Role.Admin, Role.SuperAdmin)
   @Get('details')
-  @ApiOperation({ summary: 'Get current logged-in user details' })
+  @ApiOperation({
+    summary: 'Get current logged-in user details',
+  })
   userDetail(@UserId() userId: number) {
     return this.userService.getUserById(userId);
   }
 
   // =========================
-  // ✏️ UPDATE CURRENT USER PROFILE
+  // UPDATE CURRENT USER PROFILE
   // =========================
 
   @ApiBearerAuth()
@@ -75,7 +98,9 @@ export class UserController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin, Role.SuperAdmin)
   @Get('details/:ploggerId')
-  @ApiOperation({ summary: 'Get user by ploggerId' })
+  @ApiOperation({
+    summary: 'Get user by ploggerId',
+  })
   getUserByPloggerId(
     @Param('ploggerId') ploggerId: string,
   ) {
@@ -132,8 +157,10 @@ export class UserController {
   @Roles(Role.SuperAdmin, Role.Admin)
   @Patch('approve/:id')
   @ApiOperation({ summary: 'Approve user' })
-  approveUser(@Param('id') id: string) {
-    return this.userService.approveUser(Number(id));
+  approveUser(
+    @Param('id', PositiveIntPipe) id: number,
+  ) {
+    return this.userService.approveUser(id);
   }
 
   // =========================
@@ -145,8 +172,10 @@ export class UserController {
   @Roles(Role.SuperAdmin, Role.Admin)
   @Patch('suspend/:id')
   @ApiOperation({ summary: 'Suspend user' })
-  suspendUser(@Param('id') id: string) {
-    return this.userService.suspendUser(Number(id));
+  suspendUser(
+    @Param('id', PositiveIntPipe) id: number,
+  ) {
+    return this.userService.suspendUser(id);
   }
 
   // =========================
@@ -184,10 +213,10 @@ export class UserController {
   @ApiOperation({
     summary: 'Delete user/admin',
   })
-  deleteUser(@Param('id') id: string) {
-    return this.userService.deleteUser(
-      Number(id),
-    );
+  deleteUser(
+    @Param('id', PositiveIntPipe) id: number,
+  ) {
+    return this.userService.deleteUser(id);
   }
 
   // =========================
@@ -198,11 +227,13 @@ export class UserController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.SuperAdmin)
   @Patch('promote/:id')
-  @ApiOperation({ summary: 'Promote user to admin' })
-  promoteUser(@Param('id') id: string) {
-    return this.userService.promoteUser(
-      Number(id),
-    );
+  @ApiOperation({
+    summary: 'Promote user to admin',
+  })
+  promoteUser(
+    @Param('id', PositiveIntPipe) id: number,
+  ) {
+    return this.userService.promoteUser(id);
   }
 
   // =========================
@@ -213,7 +244,9 @@ export class UserController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.User)
   @Post('attendance')
-  @ApiOperation({ summary: 'Submit attendance request' })
+  @ApiOperation({
+    summary: 'Submit attendance request',
+  })
   markAttendance(
     @Body() markAttendanceData: MarkAttendanceDto,
     @UserId() userId: number,
@@ -232,7 +265,9 @@ export class UserController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin, Role.SuperAdmin)
   @Get('attendance/pending')
-  @ApiOperation({ summary: 'Get pending attendance records' })
+  @ApiOperation({
+    summary: 'Get pending attendance records',
+  })
   getPendingAttendance() {
     return this.userService.getPendingAttendance();
   }
@@ -249,7 +284,7 @@ export class UserController {
     summary: 'Approve attendance',
   })
   approveAttendance(
-    @Param('id') id: string,
+    @Param('id', PositiveIntPipe) id: number,
     @Body()
     body: {
       hours?: number;
@@ -257,7 +292,7 @@ export class UserController {
     },
   ) {
     return this.userService.approveAttendance(
-      Number(id),
+      id,
       body.hours,
       body.waste,
     );
@@ -271,11 +306,13 @@ export class UserController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin, Role.SuperAdmin)
   @Patch('attendance/reject/:id')
-  @ApiOperation({ summary: 'Reject attendance' })
-  rejectAttendance(@Param('id') id: string) {
-    return this.userService.rejectAttendance(
-      Number(id),
-    );
+  @ApiOperation({
+    summary: 'Reject attendance',
+  })
+  rejectAttendance(
+    @Param('id', PositiveIntPipe) id: number,
+  ) {
+    return this.userService.rejectAttendance(id);
   }
 
   // =========================
@@ -286,7 +323,9 @@ export class UserController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.User)
   @Get('drivesattended')
-  @ApiOperation({ summary: 'Get drives attended' })
+  @ApiOperation({
+    summary: 'Get drives attended',
+  })
   drivesAttended(@UserId() userId: number) {
     return this.userService.drivesAttended(userId);
   }

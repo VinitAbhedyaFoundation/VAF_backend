@@ -3,18 +3,28 @@ import {
   IsDateString,
   IsEmail,
   IsEnum,
+  IsNotEmpty,
   IsOptional,
   IsString,
-  MaxLength,
   Matches,
+  MaxLength,
 } from 'class-validator';
-import { BloodGroup, Gender, Occupation } from '@prisma/client';
+
+import {
+  BloodGroup,
+  Gender,
+  Occupation,
+} from '@prisma/client';
+
+const trimString = ({ value }: { value: unknown }): unknown =>
+  typeof value === 'string' ? value.trim() : value;
 
 export class UpdateProfileDto {
   @IsOptional()
   @IsString()
+  @IsNotEmpty()
   @MaxLength(100)
-  @Transform(({ value }) => value?.trim())
+  @Transform(trimString)
   @Matches(/^[a-zA-Z\s'-]+$/, {
     message:
       'Name must contain only letters, spaces, apostrophes, and hyphens.',
@@ -35,32 +45,43 @@ export class UpdateProfileDto {
 
   @IsOptional()
   @IsString()
+  @IsNotEmpty()
   @MaxLength(20)
-  @Transform(({ value }) => value?.trim())
+  @Transform(trimString)
+  @Matches(/^[6-9]\d{9}$/, {
+    message: 'Invalid phone number',
+  })
   phone?: string;
 
   @IsOptional()
   @IsString()
+  @IsNotEmpty()
   @MaxLength(20)
-  @Transform(({ value }) => value?.trim())
+  @Transform(trimString)
+  @Matches(/^[6-9]\d{9}$/, {
+    message: 'Invalid parent phone number',
+  })
   parentNumber?: string;
 
   @IsOptional()
   @IsString()
+  @IsNotEmpty()
   @MaxLength(255)
-  @Transform(({ value }) => value?.trim())
+  @Transform(trimString)
   address?: string;
 
   @IsOptional()
   @IsString()
+  @IsNotEmpty()
   @MaxLength(100)
-  @Transform(({ value }) => value?.trim())
+  @Transform(trimString)
   city?: string;
 
   @IsOptional()
   @IsString()
+  @IsNotEmpty()
   @MaxLength(100)
-  @Transform(({ value }) => value?.trim())
+  @Transform(trimString)
   state?: string;
 
   @IsOptional()
@@ -69,13 +90,15 @@ export class UpdateProfileDto {
 
   @IsOptional()
   @IsString()
+  @IsNotEmpty()
   @MaxLength(150)
-  @Transform(({ value }) => value?.trim())
+  @Transform(trimString)
   highestQualification?: string;
 
   @IsOptional()
   @IsString()
+  @IsNotEmpty()
   @MaxLength(150)
-  @Transform(({ value }) => value?.trim())
+  @Transform(trimString)
   collegeOrCompany?: string;
 }
