@@ -17,7 +17,9 @@ export class MarkAttendanceDto {
   @IsNotEmpty()
   @MinLength(5)
   @MaxLength(100)
-  @Transform(({ value }) => value.trim())
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
   @Matches(/^[A-Za-z0-9_-]+$/, {
     message: 'Invalid attendance token format',
   })
