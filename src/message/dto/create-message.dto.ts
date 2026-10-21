@@ -1,9 +1,8 @@
+
 import { ApiProperty } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
-  IsInt,
   IsNotEmpty,
-  IsPositive,
   IsString,
   MaxLength,
 } from 'class-validator';
@@ -16,7 +15,9 @@ export class CreateMessageDto {
   @IsString()
   @IsNotEmpty()
   @MaxLength(150)
-  @Transform(({ value }) => value.trim())
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
   subject!: string;
 
   @ApiProperty({
@@ -26,14 +27,8 @@ export class CreateMessageDto {
   @IsString()
   @IsNotEmpty()
   @MaxLength(5000)
-  @Transform(({ value }) => value.trim())
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
   content!: string;
-
-  @ApiProperty({
-    example: 1,
-  })
-  @IsInt()
-  @IsPositive()
-  @IsNotEmpty()
-  senderId!: number;
 }

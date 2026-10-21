@@ -27,7 +27,7 @@ import { CreateMessageDto } from './dto/create-message.dto';
 export class MessageController {
   constructor(
     private readonly messageService: MessageService,
-  ) {}
+  ) { }
 
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -40,16 +40,21 @@ export class MessageController {
     return this.messageService.getAll();
   }
 
+  
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin, Role.SuperAdmin)
   @Post('send')
   @ApiOperation({
     summary: 'Send a message',
   })
   send(
-    @Body()
-    body: CreateMessageDto,
+    @Body() body: CreateMessageDto,
+    @UserId() senderId: number,
   ) {
-    return this.messageService.send(body);
+    return this.messageService.send(body, senderId);
   }
+
 
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
