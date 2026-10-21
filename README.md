@@ -1,73 +1,196 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="200" alt="Nest Logo" /></a>
-</p>
+# VAF Backend — Ploggers Attendance System
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Backend API for the Vinit Abhedya Foundation (VAF) platform, built to support volunteer management, drive attendance, certificates, communication, and related foundation operations.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://coveralls.io/github/nestjs/nest?branch=master" target="_blank"><img src="https://coveralls.io/repos/github/nestjs/nest/badge.svg?branch=master#9" alt="Coverage" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Tech Stack
 
-## Description
+- **Framework:** NestJS
+- **Language:** TypeScript
+- **Database:** PostgreSQL
+- **ORM:** Prisma
+- **Authentication:** JWT
+- **Email:** Nodemailer
+- **File and Media Storage:** Cloudinary
+- **Testing:** Jest
+- **Package Manager:** npm
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Features
 
-## Installation
+The backend is organized into modules that support the platform's core functionality:
 
-```bash
-$ npm install
-```
+- **Authentication:** Login, JWT authentication, and authorization.
+- **User Management:** User profiles and volunteer-related operations.
+- **Drive Management:** Drive creation, management, completion, and attendance workflows.
+- **Dashboard:** Dashboard metrics and data retrieval.
+- **Certificates:** Certificate generation and management.
+- **Cloudinary Integration:** File uploads and certificate/template deletion.
+- **Messaging:** Message management.
+- **Newsletter:** Newsletter subscription management.
+- **Mail:** Email-related functionality.
+- **Payments:** Payment-related operations.
+- **Database:** Database connectivity and Prisma integration.
 
-## Running the app
+## Prerequisites
 
-```bash
-# development
-$ npm run start
+Before running the backend, ensure you have installed:
 
-# watch mode
-$ npm run start:dev
+- Node.js version compatible with the project configuration.
+- npm
+- A PostgreSQL database
+- Access to the required external services, such as Cloudinary and email delivery.
 
-# production mode
-$ npm run start:prod
-```
+## Getting Started
 
-## Test
+### 1. Clone the repository
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+git clone https://github.com/VinitAbhedyaFoundation/VAF_backend.git
+cd VAF_backend/ploggers-attendance-system
 ```
 
-## Support
+If the repository is already cloned, navigate to the backend project directory.
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+### 2. Install dependencies
 
-## Stay in touch
+```bash
+npm install
+```
 
-- Author - [Kamil Myśliwiec](https://kamilmysliwiec.com)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+### 3. Configure environment variables
+
+Create a `.env` file in the backend project root and configure the variables required by the application.
+
+The application uses environment configuration for database connectivity, Cloudinary, and other integrations.
+
+At minimum, configure the database connection using `DATABASE_URL` according to your Prisma schema. Add the required authentication and email configuration variables based on the project implementation.
+
+**Do not commit secrets, passwords, API keys, or production environment files to GitHub.**
+
+### 4. Generate Prisma Client
+
+```bash
+npx prisma generate
+```
+
+### 5. Set up the database
+
+Apply the project's existing migrations:
+
+```bash
+npx prisma migrate deploy
+```
+
+For local development, use the migration workflow agreed upon by your team. Do not reset or recreate a shared database without authorization.
+
+### 6. Run the application
+
+Development mode:
+
+```bash
+npm run start:dev
+```
+
+Standard mode:
+
+```bash
+npm run start
+```
+
+Production mode:
+
+```bash
+npm run start:prod
+```
+
+The application listens on the port configured by the application environment.
+
+## Build
+
+Generate Prisma Client and compile the NestJS application:
+
+```bash
+npm run build
+```
+
+The project also defines a Vercel build script:
+
+```bash
+npm run vercel-build
+```
+
+## Testing
+
+The project uses Jest for automated tests.
+
+Run unit tests:
+
+```bash
+npm run test
+```
+
+Run tests in watch mode:
+
+```bash
+npm run test:watch
+```
+
+Run end-to-end tests:
+
+```bash
+npm run test:e2e
+```
+
+Generate test coverage:
+
+```bash
+npm run test:cov
+```
+
+Test coverage depends on the test cases implemented across the modules. Not every module necessarily has dedicated test coverage.
+
+## Project Structure
+
+```text
+ploggers-attendance-system/
+├── prisma/
+│   └── schema.prisma
+├── src/
+│   ├── auth/
+│   ├── certificate/
+│   ├── cloudinary/
+│   ├── common/
+│   ├── dashboard/
+│   ├── database/
+│   ├── drive/
+│   ├── mail/
+│   ├── message/
+│   ├── newsletter/
+│   ├── payment/
+│   ├── user/
+│   ├── app.module.ts
+│   └── main.ts
+├── test/
+├── package.json
+└── README.md
+```
+
+## Development Guidelines
+
+- Keep business logic organized within the appropriate NestJS modules.
+- Validate incoming requests using DTOs.
+- Protect authenticated routes with the appropriate authentication and authorization guards.
+- Add or update unit tests when changing existing functionality.
+- Run the build and relevant tests before submitting changes.
+- Keep credentials and environment-specific configuration out of source control.
+
+## Contributing
+
+1. Create or switch to the appropriate feature or fix branch.
+2. Make your changes within the relevant module.
+3. Run the relevant tests and build.
+4. Commit changes with a descriptive commit message.
+5. Push your branch and open a pull request for review.
 
 ## License
 
-Nest is [MIT licensed](LICENSE).
+Refer to the repository's license file for licensing information.
