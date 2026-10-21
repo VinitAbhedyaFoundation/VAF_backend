@@ -14,12 +14,12 @@ async function bootstrap() {
 
   // Allowed Frontend Origins
   const allowedOrigins = [
-    'http://localhost:8080',
-    'http://localhost:5173',
-    'https://vaf-frontend.vercel.app',
-    'https://vinitabhedyafoundation.com',
-    'https://www.vinitabhedyafoundation.com',
-  ];
+  'http://localhost:8080',
+  'http://localhost:5173',
+  'https://vaf-frontend.vercel.app',
+  'https://vinitabhedyafoundation.com',
+  'https://www.vinitabhedyafoundation.com',
+];
 
   // CORS
   app.enableCors({
