@@ -38,25 +38,34 @@ model User {
 }
 
 model Drive {
-  id                Int             @id @default(autoincrement())
-  date              DateTime
-  totalHours        Int
-  totalWasteKg      Int             @default(0)
-  volunteerCount    Int             @default(0)
-  temporaryToken    String          @unique
-  expiryDate        DateTime?
-  locationId        Int
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
-  title             String?
-  certificateIssued Boolean         @default(false)
-  completed         Boolean         @default(false)
-  certificates      Certificate[]
-  driveLocation     DriveLocation   @relation(fields: [locationId], references: [id])
-  participations    Participation[]
+  id                    Int         @id @default(autoincrement())
+  title                 String?
+  description           String?
+  initiative            Initiative?
+  date                  DateTime
+  totalHours            Int
+  totalWasteKg          Int         @default(0)
+  volunteerCount        Int         @default(0)
+  temporaryToken        String      @unique
+  expiryDate            DateTime?
+  locationId            Int
+  certificateTemplateId Int?
+  driveResourcesUrl     String?
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+  certificateIssued     Boolean     @default(false)
+  completed             Boolean     @default(false)
+
+  certificates        Certificate[]
+  driveLocation       DriveLocation        @relation(fields: [locationId], references: [id])
+  participations      Participation[]
+  guestVolunteers     GuestVolunteer[]
+  certificateTemplate CertificateTemplate? @relation(fields: [certificateTemplateId], references: [id], onDelete: SetNull)
 
   @@index([locationId])
   @@index([temporaryToken])
+  @@index([initiative])
+  @@index([certificateTemplateId])
 }
 
 model DriveLocation {
@@ -108,20 +117,6 @@ model Notification {
   user      User?    @relation(fields: [userId], references: [id])
 }
 
-model Certificate {
-  id       Int      @id @default(autoincrement())
-  userId   Int
-  driveId  Int
-  fileUrl  String?
-  issuedAt DateTime @default(now())
-  drive    Drive    @relation(fields: [driveId], references: [id])
-  user     User     @relation(fields: [userId], references: [id])
-
-  @@unique([userId, driveId])
-  @@index([userId])
-  @@index([driveId])
-}
-
 model CertificateTemplate {
   id        Int      @id @default(autoincrement())
   name      String
@@ -130,7 +125,24 @@ model CertificateTemplate {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  drives Drive[]
+
   @@index([name])
+}
+
+model Certificate {
+  id       Int      @id @default(autoincrement())
+  userId   Int
+  driveId  Int
+  fileUrl  String?
+  issuedAt DateTime @default(now())
+
+  drive Drive @relation(fields: [driveId], references: [id])
+  user  User  @relation(fields: [userId], references: [id])
+
+  @@unique([userId, driveId])
+  @@index([userId])
+  @@index([driveId])
 }
 
 enum Gender {
@@ -175,6 +187,12 @@ enum AttendanceStatus {
   Registered
 }
 
+enum Initiative {
+  LAAL_BINDI
+  SOCIAL_SHELF
+  SAMBHAJINAGAR_PLOGGERS
+}
+
 model NewsletterSubscriber {
   id        Int      @id @default(autoincrement())
   email     String   @unique
@@ -182,4 +200,17 @@ model NewsletterSubscriber {
   isActive  Boolean  @default(true)
 
   @@index([email])
+}
+
+model GuestVolunteer {
+  id        Int      @id @default(autoincrement())
+  driveId   Int
+  name      String
+  hours     Int      @default(0)
+  waste     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  drive Drive @relation(fields: [driveId], references: [id], onDelete: Cascade)
+
+  @@index([driveId])
 }
