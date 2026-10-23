@@ -11,9 +11,11 @@ export class CreateDriveLocationDto {
     example: 'Pune, Maharashtra',
     maxLength: 255,
   })
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
   @IsString()
   @IsNotEmpty()
   @MaxLength(255)
-  @Transform(({ value }) => value.trim())
   location!: string;
 }

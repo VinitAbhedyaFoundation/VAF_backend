@@ -1,17 +1,20 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   IsDate,
+  IsEnum,
   IsInt,
   IsNotEmpty,
+  IsOptional,
   IsPositive,
   IsString,
-  MaxLength
+  MaxLength,
 } from 'class-validator';
+import { Initiative } from '@prisma/client';
 
 export class CreateDriveDto {
   @ApiProperty({
-    example: 'Tree Plantation Drive',
+    example: 'Community Awareness Drive',
     maxLength: 100,
   })
   @IsString()
@@ -20,7 +23,25 @@ export class CreateDriveDto {
   title!: string;
 
   @ApiProperty({
-    example: 'Pune, Maharashtra',
+    enum: Initiative,
+    example: Initiative.LAAL_BINDI,
+    description: 'The foundation initiative organizing this drive',
+  })
+  @IsEnum(Initiative)
+  @IsNotEmpty()
+  initiative!: Initiative;
+
+  @ApiPropertyOptional({
+    example: 'An awareness session for the local community.',
+    maxLength: 2000,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  description?: string;
+
+  @ApiProperty({
+    example: 'Chhatrapati Sambhajinagar',
     maxLength: 255,
   })
   @IsString()
@@ -29,7 +50,7 @@ export class CreateDriveDto {
   location!: string;
 
   @ApiProperty({
-    example: '2026-07-10T08:00:00.000Z',
+    example: '2026-11-10T08:00:00.000Z',
     type: String,
     format: 'date-time',
   })
@@ -40,7 +61,7 @@ export class CreateDriveDto {
 
   @ApiProperty({
     example: 4,
-    description: 'Total volunteering hours',
+    description: 'Planned volunteering hours',
   })
   @Type(() => Number)
   @IsInt()

@@ -1,4 +1,4 @@
-import { PartialType } from "@nestjs/mapped-types";
-import { CreateDriveDto } from "./create-drive.dto";
+import { PartialType } from '@nestjs/mapped-types';
+import { CreateDriveDto } from './create-drive.dto';
 
-export class UpdateDriveDto extends PartialType(CreateDriveDto){} 
+export class UpdateDriveDto extends PartialType(CreateDriveDto) {}
