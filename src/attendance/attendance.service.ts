@@ -13,7 +13,7 @@ import { DatabaseService } from '../database/database.service';
 export class AttendanceService {
   constructor(
     private readonly db: DatabaseService,
-  ) {}
+  ) { }
 
   // 🔹 GET ALL ATTENDANCE
   async getAll() {
@@ -60,29 +60,36 @@ export class AttendanceService {
   }
 
   // 🔹 JOIN A DRIVE
-  async joinDrive(
-    userId: number,
-    driveId: number,
-  ) {
-    const drive =
-      await this.db.drive.findUnique({
-        where: {
-          id: driveId,
-        },
-        select: {
-          completed: true,
-        },
-      });
+
+  // JOIN A DRIVE
+  async joinDrive(userId: number, driveId: number) {
+    const drive = await this.db.drive.findUnique({
+      where: {
+        id: driveId,
+      },
+      select: {
+        completed: true,
+        date: true,
+        totalHours: true,
+      },
+    });
 
     if (!drive) {
-      throw new BadRequestException(
-        'Drive not found',
-      );
+      throw new BadRequestException('Drive not found');
     }
 
-    if (drive.completed) {
+    const now = new Date();
+    const driveStart = new Date(drive.date);
+    const driveEnd = new Date(
+      driveStart.getTime() + drive.totalHours * 60 * 60 * 1000,
+    );
+    const joinDeadline = new Date(
+      driveEnd.getTime() + 2 * 60 * 60 * 1000,
+    );
+
+    if (now >= joinDeadline) {
       throw new BadRequestException(
-        'Cannot join a completed drive',
+        'The joining window for this drive has closed',
       );
     }
 
@@ -113,8 +120,7 @@ export class AttendanceService {
       });
     } catch (error) {
       if (
-        error instanceof
-          Prisma.PrismaClientKnownRequestError &&
+        error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2002'
       ) {
         throw new BadRequestException(
@@ -328,9 +334,9 @@ export class AttendanceService {
       participations.filter(
         (participation) =>
           participation.status !==
-            AttendanceStatus.Registered &&
+          AttendanceStatus.Registered &&
           participation.status !==
-            AttendanceStatus.Pending,
+          AttendanceStatus.Pending,
       );
 
     if (invalidRecords.length > 0) {

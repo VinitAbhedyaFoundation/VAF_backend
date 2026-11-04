@@ -28,6 +28,7 @@ describe('UserService', () => {
             findUnique: jest.Mock;
             findFirst: jest.Mock;
             findMany: jest.Mock;
+            count: jest.Mock;
             create: jest.Mock;
             update: jest.Mock;
             delete: jest.Mock;
@@ -40,6 +41,9 @@ describe('UserService', () => {
         participation: {
             findUnique: jest.Mock;
             findMany: jest.Mock;
+            findFirst: jest.Mock;
+            count: jest.Mock;
+            groupBy: jest.Mock;
             create: jest.Mock;
             update: jest.Mock;
             updateMany: jest.Mock;
@@ -76,6 +80,7 @@ describe('UserService', () => {
                 findUnique: jest.fn(),
                 findFirst: jest.fn(),
                 findMany: jest.fn(),
+                count: jest.fn(),
                 create: jest.fn(),
                 update: jest.fn(),
                 delete: jest.fn(),
@@ -89,6 +94,9 @@ describe('UserService', () => {
             participation: {
                 findUnique: jest.fn(),
                 findMany: jest.fn(),
+                findFirst: jest.fn(),
+                count: jest.fn(),
+                groupBy: jest.fn(),
                 create: jest.fn(),
                 update: jest.fn(),
                 updateMany: jest.fn(),
@@ -216,7 +224,10 @@ describe('UserService', () => {
 
     describe('approveUser', () => {
         it('should approve an existing user', async () => {
-            database.user.findUnique.mockResolvedValue(userFixture);
+            database.user.findUnique.mockResolvedValue({
+                ...userFixture,
+                status: UserStatus.Pending,
+            });
             database.user.update.mockResolvedValue({
                 id: 1,
                 name: userFixture.name,
@@ -231,8 +242,13 @@ describe('UserService', () => {
             expect(result.message).toBe('User approved successfully');
             expect(database.user.update).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    where: { id: 1 },
-                    data: { status: UserStatus.Approved },
+                    where: {
+                        id: 1,
+                        status: UserStatus.Pending,
+                    },
+                    data: {
+                        status: UserStatus.Approved,
+                    },
                 }),
             );
         });
@@ -391,14 +407,13 @@ describe('UserService', () => {
 
     describe('getAllUsers', () => {
         it('should calculate totals using approved participations only', async () => {
-            database.user.findMany.mockResolvedValue([
+            database.user.findMany.mockResolvedValue([userFixture]);
+            database.user.count.mockResolvedValue(1);
+            database.participation.groupBy.mockResolvedValue([
                 {
-                    ...userFixture,
-                    participations: [
-                        { status: 'Approved', hours: 3, waste: 2 },
-                        { status: 'Approved', hours: 4, waste: 5 },
-                        { status: 'Pending', hours: 10, waste: 10 },
-                    ],
+                    userId: 1,
+                    _count: { _all: 2 },
+                    _sum: { hours: 7, waste: 7 },
                 },
             ]);
 
@@ -418,6 +433,8 @@ describe('UserService', () => {
 
         it('should return an empty list when there are no users', async () => {
             database.user.findMany.mockResolvedValue([]);
+            database.user.count.mockResolvedValue(0);
+            database.participation.groupBy.mockResolvedValue([]);
 
             const result = await service.getAllUsers();
 
@@ -429,20 +446,26 @@ describe('UserService', () => {
         it('should rank approved volunteers by score', async () => {
             database.user.findMany.mockResolvedValue([
                 {
-                    ...userFixture,
                     id: 1,
-                    participations: [
-                        { status: 'Approved', hours: 2, waste: 3 },
-                    ],
+                    name: userFixture.name,
+                    ploggerId: userFixture.ploggerId,
                 },
                 {
-                    ...userFixture,
                     id: 2,
                     name: 'Top Volunteer',
                     ploggerId: '2610002',
-                    participations: [
-                        { status: 'Approved', hours: 10, waste: 10 },
-                    ],
+                },
+            ]);
+            database.participation.groupBy.mockResolvedValue([
+                {
+                    userId: 1,
+                    _count: { _all: 1 },
+                    _sum: { hours: 2, waste: 3 },
+                },
+                {
+                    userId: 2,
+                    _count: { _all: 1 },
+                    _sum: { hours: 10, waste: 10 },
                 },
             ]);
 
@@ -464,6 +487,7 @@ describe('UserService', () => {
 
         it('should return an empty leaderboard when no users qualify', async () => {
             database.user.findMany.mockResolvedValue([]);
+            database.participation.groupBy.mockResolvedValue([]);
 
             const result = await service.getLeaderboard();
 
@@ -490,6 +514,7 @@ describe('UserService', () => {
                     createdAt: userFixture.createdAt,
                 },
             ]);
+            database.user.count.mockResolvedValue(1);
 
             const result = await service.searchUsers('Test');
 
@@ -515,9 +540,14 @@ describe('UserService', () => {
         it('should create attendance successfully', async () => {
             database.drive.findUnique.mockResolvedValue({
                 id: 10,
-                expiryDate: null,
-                completed: false,
+                date: new Date(Date.now() - 60 * 60 * 1000),
+                totalHours: 4,
             });
+            database.user.findUnique.mockResolvedValue({
+                id: 1,
+                status: UserStatus.Approved,
+            });
+            database.participation.findFirst.mockResolvedValue(null);
 
             database.participation.create.mockResolvedValue({
                 id: 1,
@@ -572,9 +602,14 @@ describe('UserService', () => {
         it('should reject duplicate attendance', async () => {
             database.drive.findUnique.mockResolvedValue({
                 id: 10,
-                expiryDate: null,
-                completed: false,
+                date: new Date(Date.now() - 60 * 60 * 1000),
+                totalHours: 4,
             });
+            database.user.findUnique.mockResolvedValue({
+                id: 1,
+                status: UserStatus.Approved,
+            });
+            database.participation.findFirst.mockResolvedValue(null);
 
             database.participation.create.mockRejectedValue(
                 new Prisma.PrismaClientKnownRequestError(
@@ -627,20 +662,21 @@ describe('UserService', () => {
             const result = await service.drivesAttended(1);
 
             expect(result.drives).toEqual([]);
-            expect(result.message).toBe('No drives attended');
+            expect(result.message).toBe('No drive participation found');
         });
     });
 
     describe('getPendingAttendance', () => {
         it('should return pending attendance records', async () => {
             database.participation.findMany.mockResolvedValue([]);
+            database.participation.count.mockResolvedValue(0);
 
             const result = await service.getPendingAttendance();
 
             expect(result.attendance).toEqual([]);
             expect(database.participation.findMany).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    where: { status: 'Pending' },
+                    where: { status: AttendanceStatus.Pending, attendanceMarked: true },
                 }),
             );
         });
@@ -654,6 +690,7 @@ describe('UserService', () => {
                     userId: 1,
                     driveId: 10,
                     status: AttendanceStatus.Pending,
+                    attendanceMarked: true,
                     hours: 0,
                     waste: 0,
                     drive: { totalHours: 4 },
@@ -680,6 +717,7 @@ describe('UserService', () => {
                     where: {
                         id: 5,
                         status: AttendanceStatus.Pending,
+                        attendanceMarked: true,
                     },
                     data: expect.objectContaining({
                         status: AttendanceStatus.Approved,
@@ -712,6 +750,7 @@ describe('UserService', () => {
                     userId: 1,
                     driveId: 10,
                     status: AttendanceStatus.Pending,
+                    attendanceMarked: true,
                     hours: 0,
                     waste: 0,
                     drive: { totalHours: 4 },
@@ -771,6 +810,7 @@ describe('UserService', () => {
                 where: {
                     id: 5,
                     status: AttendanceStatus.Pending,
+                    attendanceMarked: true,
                 },
                 data: {
                     status: AttendanceStatus.Rejected,

@@ -1,4 +1,3 @@
-
 import {
     BadRequestException,
     ServiceUnavailableException,
@@ -28,7 +27,6 @@ describe('MailService', () => {
 
         const instance = new MailService();
 
-        // Keep expected log output out of test results.
         jest.spyOn((instance as any).logger, 'log').mockImplementation();
         jest.spyOn((instance as any).logger, 'warn').mockImplementation();
         jest.spyOn((instance as any).logger, 'error').mockImplementation();
@@ -107,7 +105,25 @@ describe('MailService', () => {
                     to: 'recipient@example.com',
                     subject: 'Test subject',
                     from: '"VAF Portal" <vaf-test@gmail.com>',
+                    text: 'Test subject\n\nTest content\n\nVAF Portal',
+                    html: expect.stringContaining('Test content'),
                 }),
+            );
+        });
+
+        it('should trim recipient, subject and content', async () => {
+            await service.sendMail(
+                ' recipient@example.com ',
+                '  Test subject  ',
+                '  Test content  ',
+            );
+
+            const options = mockTransporter.sendMail.mock.calls[0][0];
+
+            expect(options.to).toBe('recipient@example.com');
+            expect(options.subject).toBe('Test subject');
+            expect(options.text).toBe(
+                'Test subject\n\nTest content\n\nVAF Portal',
             );
         });
 
@@ -125,6 +141,19 @@ describe('MailService', () => {
             expect(options.html).toContain('&lt;img');
         });
 
+        it('should preserve line breaks in the HTML content', async () => {
+            await service.sendMail(
+                'recipient@example.com',
+                'Test subject',
+                'First line\nSecond line',
+            );
+
+            const options = mockTransporter.sendMail.mock.calls[0][0];
+
+            expect(options.html).toContain('First line<br>Second line');
+            expect(options.text).toContain('First line\nSecond line');
+        });
+
         it('should reject an invalid recipient', async () => {
             await expect(
                 service.sendMail('invalid-email', 'Subject', 'Content'),
@@ -133,9 +162,37 @@ describe('MailService', () => {
             expect(mockTransporter.sendMail).not.toHaveBeenCalled();
         });
 
+        it('should reject an empty recipient', async () => {
+            await expect(
+                service.sendMail('  ', 'Subject', 'Content'),
+            ).rejects.toThrow(BadRequestException);
+        });
+
         it('should reject an empty subject', async () => {
             await expect(
                 service.sendMail('recipient@example.com', '  ', 'Content'),
+            ).rejects.toThrow(BadRequestException);
+        });
+
+        it('should reject newline characters in the subject', async () => {
+            await expect(
+                service.sendMail(
+                    'recipient@example.com',
+                    'Subject\nBcc: attacker@example.com',
+                    'Content',
+                ),
+            ).rejects.toThrow(BadRequestException);
+
+            expect(mockTransporter.sendMail).not.toHaveBeenCalled();
+        });
+
+        it('should reject a subject longer than 200 characters', async () => {
+            await expect(
+                service.sendMail(
+                    'recipient@example.com',
+                    'a'.repeat(201),
+                    'Content',
+                ),
             ).rejects.toThrow(BadRequestException);
         });
 
@@ -195,6 +252,42 @@ describe('MailService', () => {
             );
         });
 
+        it('should trim and deduplicate bulk recipients', async () => {
+            await service.sendBulkMail(
+                [
+                    ' first@example.com ',
+                    'second@example.com',
+                    'first@example.com',
+                ],
+                'Announcement',
+                'Content',
+            );
+
+            expect(mockTransporter.sendMail).toHaveBeenCalledTimes(1);
+            expect(mockTransporter.sendMail.mock.calls[0][0].bcc).toEqual([
+                'first@example.com',
+                'second@example.com',
+            ]);
+        });
+
+        it('should split large recipient lists into batches of 50', async () => {
+            const recipients = Array.from(
+                { length: 120 },
+                (_, index) => `volunteer${index}@example.com`,
+            );
+
+            await service.sendBulkMail(
+                recipients,
+                'Bulk announcement',
+                'Announcement content',
+            );
+
+            expect(mockTransporter.sendMail).toHaveBeenCalledTimes(3);
+            expect(mockTransporter.sendMail.mock.calls[0][0].bcc).toHaveLength(50);
+            expect(mockTransporter.sendMail.mock.calls[1][0].bcc).toHaveLength(50);
+            expect(mockTransporter.sendMail.mock.calls[2][0].bcc).toHaveLength(20);
+        });
+
         it('should reject an empty recipient list', async () => {
             await expect(
                 service.sendBulkMail([], 'Subject', 'Content'),
@@ -237,7 +330,29 @@ describe('MailService', () => {
             ).rejects.toThrow(BadRequestException);
         });
 
-        it('should rethrow errors when bulk sending fails', async () => {
+        it('should reject an empty bulk email content', async () => {
+            await expect(
+                service.sendBulkMail(
+                    ['recipient@example.com'],
+                    'Subject',
+                    '  ',
+                ),
+            ).rejects.toThrow(BadRequestException);
+        });
+
+        it('should reject newline characters in a bulk email subject', async () => {
+            await expect(
+                service.sendBulkMail(
+                    ['recipient@example.com'],
+                    'Announcement\nBcc: attacker@example.com',
+                    'Content',
+                ),
+            ).rejects.toThrow(BadRequestException);
+
+            expect(mockTransporter.sendMail).not.toHaveBeenCalled();
+        });
+
+        it('should stop and rethrow when a bulk batch fails', async () => {
             mockTransporter.sendMail.mockRejectedValue(
                 new Error('Bulk SMTP failure'),
             );
