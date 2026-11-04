@@ -1,3 +1,4 @@
+
 import {
   Body,
   Controller,
@@ -25,6 +26,8 @@ import { CreateDriveDto } from './dto/create-drive.dto';
 import { CreateDriveLocationDto } from './dto/drive-location.dto';
 import { UpdateDriveDto } from './dto/update-drive.dto';
 import { CompleteDriveDto } from './dto/complete-drive.dto';
+import { CreateGuestVolunteerDto } from './dto/create-guest-volunteer.dto';
+import { UpdateGuestVolunteerDto } from './dto/update-guest-volunteer.dto';
 
 @ApiTags('Drive')
 @Controller('drive')
@@ -43,12 +46,8 @@ export class DriveController {
     summary: 'Create a new drive',
     description: 'Admin only',
   })
-  async createDrive(
-    @Body() createDriveDto: CreateDriveDto,
-  ) {
-    return this.driveService.createDrive(
-      createDriveDto,
-    );
+  async createDrive(@Body() createDriveDto: CreateDriveDto) {
+    return this.driveService.createDrive(createDriveDto);
   }
 
   @ApiBearerAuth()
@@ -59,12 +58,8 @@ export class DriveController {
     summary: 'Create a new drive location',
     description: 'Admin only',
   })
-  async createDriveLocation(
-    @Body() dto: CreateDriveLocationDto,
-  ) {
-    return this.driveService.createDriveLocation(
-      dto,
-    );
+  async createDriveLocation(@Body() dto: CreateDriveLocationDto) {
+    return this.driveService.createDriveLocation(dto);
   }
 
   @ApiBearerAuth()
@@ -76,17 +71,13 @@ export class DriveController {
     description: 'Admin only',
   })
   async update(
-    @Param('id', ParseIntPipe)
-    id: number,
+    @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateDriveDto,
   ) {
-    return this.driveService.update(
-      id,
-      dto,
-    );
+    return this.driveService.update(id, dto);
   }
 
-  // ================= PUBLIC ROUTES =================
+  // ================= PUBLIC DRIVE ROUTES =================
 
   @Get('alldrives')
   @ApiOperation({
@@ -130,24 +121,84 @@ export class DriveController {
   @ApiOperation({
     summary: 'Get drives by date',
   })
-  async findByDate(
-    @Param('date') date: string,
-  ) {
-    return this.driveService.findByDate(
-      date,
-    );
+  async findByDate(@Param('date') date: string) {
+    return this.driveService.findByDate(date);
   }
+
+  // ================= ADMIN GUEST VOLUNTEER ROUTES =================
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin, Role.SuperAdmin)
+  @Get('guest-volunteers/:driveId')
+  @ApiOperation({
+    summary: 'List guest volunteers for a drive',
+    description: 'Admin only',
+  })
+  async getGuestVolunteers(
+    @Param('driveId', ParseIntPipe) driveId: number,
+  ) {
+    return this.driveService.getGuestVolunteers(driveId);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin, Role.SuperAdmin)
+  @Patch('guest-volunteers/:guestId')
+  @ApiOperation({
+    summary: 'Update guest volunteer hours or waste',
+    description:
+      'Admin only. Waste updates are restricted to Sambhajinagar Ploggers drives.',
+  })
+  async updateGuestVolunteer(
+    @Param('guestId', ParseIntPipe) guestId: number,
+    @Body() dto: UpdateGuestVolunteerDto,
+  ) {
+    return this.driveService.updateGuestVolunteer(guestId, dto);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin, Role.SuperAdmin)
+  @Post('guest-volunteers/walk-in')
+  @ApiOperation({
+    summary: 'Register a walk-in guest volunteer',
+    description:
+      'Admin only. Registers a guest who arrives at a drive without prior registration. Hours and waste start at zero.',
+  })
+  async registerWalkInGuestVolunteer(
+    @Body() dto: CreateGuestVolunteerDto,
+  ) {
+    return this.driveService.registerGuestVolunteer(dto);
+  }
+
+  // ================= PUBLIC GUEST VOLUNTEER ROUTE =================
+
+  @Post('guest-volunteers')
+  @ApiOperation({
+    summary: 'Register a guest volunteer for a drive',
+    description:
+      'Public endpoint. Guest registrations start with zero approved hours and zero recorded waste.',
+  })
+  async registerGuestVolunteer(
+    @Body() dto: CreateGuestVolunteerDto,
+  ) {
+    return this.driveService.registerGuestVolunteer(dto);
+  }
+
+  // ================= GET DRIVE BY ID =================
 
   @Get(':id')
   @ApiOperation({
     summary: 'Get drive by ID',
   })
   async findOne(
-    @Param('id', ParseIntPipe)
-    id: number,
+    @Param('id', ParseIntPipe) id: number,
   ) {
     return this.driveService.findOne(id);
   }
+
+  // ================= COMPLETE DRIVE =================
 
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)

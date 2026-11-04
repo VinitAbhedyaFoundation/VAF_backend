@@ -1,24 +1,47 @@
 import {
+
   BadRequestException,
+
   ConflictException,
+
   Injectable,
+
   InternalServerErrorException,
+
   Logger,
+
   NotFoundException,
+
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+
 import { randomBytes } from 'crypto';
+
 import { DatabaseService } from '../database/database.service';
+
 import { CreateDriveDto } from './dto/create-drive.dto';
+
 import { CreateDriveLocationDto } from './dto/drive-location.dto';
+
 import { UpdateDriveDto } from './dto/update-drive.dto';
 
+import { CreateGuestVolunteerDto } from './dto/create-guest-volunteer.dto';
+
+import { UpdateGuestVolunteerDto } from './dto/update-guest-volunteer.dto';
+
+import { Prisma, UserStatus } from '@prisma/client';
+
 @Injectable()
+
 export class DriveService {
+
   private readonly logger = new Logger(DriveService.name);
+
   private readonly MAX_PAGE_SIZE = 50;
+
   constructor(
+
     private readonly databaseService: DatabaseService,
+
   ) { }
 
   // =========================
@@ -116,6 +139,7 @@ export class DriveService {
   async createDrive(createDriveDto: CreateDriveDto) {
 
     const { title, location, date, totalHours, initiative, description } =
+
       createDriveDto;
 
     try {
@@ -123,7 +147,9 @@ export class DriveService {
       const parsedDate = new Date(date);
 
       if (Number.isNaN(parsedDate.getTime())) {
+
         throw new BadRequestException('Invalid date');
+
       }
 
       const temporaryToken = this.generateSecureToken();
@@ -171,6 +197,64 @@ export class DriveService {
       });
 
       this.logger.log(`Drive created: ${drive.id}`);
+
+      try {
+
+        const approvedUsers = await this.databaseService.user.findMany({
+
+          where: {
+
+            status: UserStatus.Approved,
+
+          },
+
+          select: {
+
+            id: true,
+
+          },
+
+        });
+
+        if (approvedUsers.length > 0) {
+
+          await this.databaseService.notification.createMany({
+
+            data: approvedUsers.map((user) => ({
+
+              userId: user.id,
+
+              title: 'New Drive Available',
+
+              message: `${drive.title ?? 'A new drive'} has been scheduled for ${drive.date.toISOString()}. Location: ${drive.driveLocation?.location ?? 'Location not specified'}.`,
+
+            })),
+
+          });
+
+        }
+
+        this.logger.log(
+
+          `Drive notification created for ${approvedUsers.length} approved users.`,
+
+        );
+
+      } catch (notificationError) {
+
+        this.logger.error(
+
+          'Drive created successfully, but notification creation failed.',
+
+          notificationError instanceof Error
+
+            ? notificationError.stack
+
+            : String(notificationError),
+
+        );
+
+      }
 
       return {
 
@@ -246,29 +330,39 @@ export class DriveService {
 
       };
 
-
-
     } catch (error) {
+
       if (
+
         error instanceof Prisma.PrismaClientKnownRequestError &&
+
         error.code === 'P2002'
+
       ) {
+
         throw new ConflictException(
+
           'This drive location already exists',
+
         );
+
       }
 
       this.logger.error(
+
         'Create location failed',
+
         error instanceof Error ? error.stack : String(error),
+
       );
 
       throw new InternalServerErrorException(
+
         'Failed to create drive location',
+
       );
+
     }
-
-
 
   }
 
@@ -355,6 +449,7 @@ export class DriveService {
           completed: drive.completed,
 
           initiative: drive.initiative,
+
           description: drive.description,
 
         };
@@ -494,21 +589,35 @@ export class DriveService {
       }
 
       const volunteerCount = drive.participations.filter(
+
         (participation) => participation.status === 'Approved',
+
       ).length;
 
       return {
+
         id: drive.id,
+
         title: drive.title,
+
         date: drive.date,
+
         totalHours: drive.totalHours,
+
         volunteerCount,
+
         totalWasteKg: drive.totalWasteKg ?? 0,
+
         wasteKg: drive.totalWasteKg ?? 0,
+
         completed: drive.completed,
+
         location: drive.driveLocation?.location ?? null,
+
         initiative: drive.initiative,
+
         description: drive.description,
+
       };
 
     } catch (error) {
@@ -546,7 +655,6 @@ export class DriveService {
   // =========================
 
   async update(id: number, updateDriveData: UpdateDriveDto) {
-
     this.validateDriveId(id);
 
     const {
@@ -559,107 +667,103 @@ export class DriveService {
     } = updateDriveData;
 
     try {
+      const existingDrive = await this.databaseService.drive.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          date: true,
+          completed: true,
+        },
+      });
+
+      if (!existingDrive) {
+        throw new NotFoundException('Drive not found');
+      }
+
+      if (existingDrive.completed) {
+        throw new BadRequestException('Completed drives cannot be edited');
+      }
+
+      if (existingDrive.date.getTime() <= Date.now()) {
+        throw new BadRequestException('Only upcoming drives can be edited');
+      }
+
+      if (
+        title === undefined &&
+        location === undefined &&
+        date === undefined &&
+        totalHours === undefined &&
+        initiative === undefined &&
+        description === undefined
+      ) {
+        throw new BadRequestException('Provide at least one field to update');
+      }
 
       let parsedDate: Date | undefined;
-
       if (date !== undefined && date !== null) {
-
         parsedDate = new Date(date);
-
         if (Number.isNaN(parsedDate.getTime())) {
-
           throw new BadRequestException('Invalid date');
-
         }
+        if (parsedDate.getTime() <= Date.now()) {
+          throw new BadRequestException('The updated drive date must be in the future');
+        }
+      }
 
+      if (totalHours !== undefined && (!Number.isInteger(totalHours) || totalHours <= 0)) {
+        throw new BadRequestException('Total hours must be a positive integer');
       }
 
       const drive = await this.databaseService.drive.update({
-
         where: { id },
-
         data: {
-
-          title,
-
-          initiative,
-
-          description,
-
-          date: parsedDate,
-
-          totalHours,
-
+          ...(title !== undefined && { title }),
+          ...(initiative !== undefined && { initiative }),
+          ...(description !== undefined && { description }),
+          ...(parsedDate !== undefined && { date: parsedDate }),
+          ...(totalHours !== undefined && { totalHours }),
           ...(location !== undefined && {
-
             driveLocation: {
-
               connectOrCreate: {
-
                 where: { location },
-
                 create: { location },
-
               },
-
             },
-
           }),
-
         },
-
         include: {
-
           driveLocation: {
-
             select: {
-
               location: true,
-
             },
-
           },
-
         },
-
       });
 
       this.logger.log(`Drive updated: ${drive.id}`);
 
       return {
-
         message: 'Drive Updated Successfully',
-
         drive,
-
       };
-
     } catch (error) {
-
-      if (error instanceof BadRequestException) {
-
+      if (
+        error instanceof BadRequestException ||
+        error instanceof NotFoundException
+      ) {
         throw error;
-
       }
 
       if (this.isRecordNotFoundError(error)) {
-
         throw new NotFoundException('Drive not found');
-
       }
 
       this.logger.error(
-
         'Update drive failed',
-
         error instanceof Error ? error.stack : String(error),
-
       );
-
       throw new InternalServerErrorException('Failed to update drive');
-
     }
-
   }
 
   // =========================
@@ -673,31 +777,49 @@ export class DriveService {
     const dateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
 
     if (!dateMatch) {
+
       throw new BadRequestException(
+
         'Invalid date. Expected format: YYYY-MM-DD',
+
       );
+
     }
 
     const year = Number(dateMatch[1]);
+
     const month = Number(dateMatch[2]);
+
     const day = Number(dateMatch[3]);
 
     const calendarDate = new Date(Date.UTC(year, month - 1, day));
 
     if (
+
       calendarDate.getUTCFullYear() !== year ||
+
       calendarDate.getUTCMonth() !== month - 1 ||
+
       calendarDate.getUTCDate() !== day
+
     ) {
+
       throw new BadRequestException('Invalid date');
+
     }
 
+    // Interpret the requested calendar date in India Standard Time (UTC+05:30).
+
     const parsedDate = new Date(
+
       Date.UTC(year, month - 1, day) - 330 * 60 * 1000,
+
     );
 
     const endOfDay = new Date(
+
       parsedDate.getTime() + 24 * 60 * 60 * 1000,
+
     );
 
     try {
@@ -750,6 +872,8 @@ export class DriveService {
 
       }
 
+      const now = new Date();
+
       return drives.map((drive) => {
 
         const approvedParticipations = drive.participations.filter(
@@ -767,6 +891,34 @@ export class DriveService {
           0,
 
         );
+
+        const startTime = new Date(drive.date);
+
+        const endTime = new Date(
+          startTime.getTime() + drive.totalHours * 60 * 60 * 1000,
+        );
+        const attendanceDeadline = new Date(
+          endTime.getTime() + 2 * 60 * 60 * 1000,
+        );
+
+        let status:
+          | 'Completed'
+          | 'Upcoming'
+          | 'Ongoing'
+          | 'Recently Ended'
+          | 'Past';
+
+        if (drive.completed) {
+          status = 'Completed';
+        } else if (now < startTime) {
+          status = 'Upcoming';
+        } else if (now <= endTime) {
+          status = 'Ongoing';
+        } else if (now < attendanceDeadline) {
+          status = 'Recently Ended';
+        } else {
+          status = 'Past';
+        }
 
         return {
 
@@ -788,13 +940,10 @@ export class DriveService {
 
           location: drive.driveLocation?.location ?? null,
 
-          status: drive.completed
-            ? 'Completed'
-            : drive.date < new Date()
-              ? 'Past'
-              : 'Upcoming',
+          status,
 
           initiative: drive.initiative,
+
           description: drive.description,
 
         };
@@ -831,7 +980,7 @@ export class DriveService {
 
   // =========================
 
-  // UPCOMING DRIVES
+  // UPCOMING / ATTENDANCE-ELIGIBLE DRIVES
 
   // =========================
 
@@ -839,47 +988,33 @@ export class DriveService {
 
     try {
 
+      const now = new Date();
+
+      const attendanceGracePeriodMs = 2 * 60 * 60 * 1000;
+
+      // A completed flag must not hide a drive whose attendance window is
+
+      // still open. The per-drive totalHours value means eligibility must
+
+      // be calculated for each drive before filtering.
+
       const drives = await this.databaseService.drive.findMany({
 
-        where: {
-
-          date: {
-
-            gte: new Date(),
-
-          },
-
-          completed: false,
-
-        },
-
-        orderBy: {
-
-          date: 'asc',
-
-        },
+        orderBy: { date: 'asc' },
 
         include: {
 
           driveLocation: {
 
-            select: {
-
-              location: true,
-
-            },
+            select: { location: true },
 
           },
 
           participations: {
 
-            select: {
+            where: { status: 'Approved' },
 
-              hours: true,
-
-              status: true,
-
-            },
+            select: { id: true },
 
           },
 
@@ -887,22 +1022,66 @@ export class DriveService {
 
       });
 
-      return drives.map((drive) => {
-        const volunteerCount = drive.participations.filter(
-          (participation) => participation.status === 'Approved',
-        ).length;
+      return drives.flatMap((drive) => {
 
-        return {
+        const startTime = drive.date.getTime();
+
+        const endTime = startTime + drive.totalHours * 60 * 60 * 1000;
+
+        const joinDeadline = endTime + attendanceGracePeriodMs;
+
+        // The window is exclusive at its deadline: attendance is closed
+
+        // once now reaches the exact end of the grace period.
+
+        if (now.getTime() >= joinDeadline) {
+
+          return [];
+
+        }
+
+        let status: 'Upcoming' | 'Ongoing' | 'Recently Ended';
+
+        if (now.getTime() < startTime) {
+
+          status = 'Upcoming';
+
+        } else if (now.getTime() <= endTime) {
+
+          status = 'Ongoing';
+
+        } else {
+
+          status = 'Recently Ended';
+
+        }
+
+        return [{
+
           id: drive.id,
+
           title: drive.title,
+
           date: drive.date,
+
           totalHours: drive.totalHours,
-          volunteerCount,
+
+          volunteerCount: drive.participations.length,
+
           completed: drive.completed,
+
           location: drive.driveLocation?.location ?? null,
+
           initiative: drive.initiative,
+
           description: drive.description,
-        };
+
+          status,
+
+          joinable: true,
+
+        }];
+
       });
 
     } catch (error) {
@@ -982,12 +1161,19 @@ export class DriveService {
       }
 
       if (
+
         totalWasteKg !== undefined &&
+
         existingDrive.initiative !== 'SAMBHAJINAGAR_PLOGGERS'
+
       ) {
+
         throw new BadRequestException(
+
           'Waste tracking is only available for Sambhajinagar Ploggers drives',
+
         );
+
       }
 
       const data: {
@@ -1031,10 +1217,15 @@ export class DriveService {
     } catch (error) {
 
       if (
+
         error instanceof NotFoundException ||
+
         error instanceof BadRequestException
+
       ) {
+
         throw error;
+
       }
 
       if (this.isRecordNotFoundError(error)) {
@@ -1052,6 +1243,344 @@ export class DriveService {
       );
 
       throw new InternalServerErrorException('Failed to complete drive');
+
+    }
+
+  }
+
+  async registerGuestVolunteer(dto: CreateGuestVolunteerDto) {
+
+    this.validateDriveId(dto.driveId);
+
+    const name = dto.name.trim();
+
+    if (!name) {
+
+      throw new BadRequestException('Guest name is required');
+
+    }
+
+    try {
+
+      const drive = await this.databaseService.drive.findUnique({
+
+        where: { id: dto.driveId },
+
+        select: { id: true },
+
+      });
+
+      if (!drive) {
+
+        throw new NotFoundException('Drive not found');
+
+      }
+
+      const guestVolunteer =
+
+        await this.databaseService.guestVolunteer.create({
+
+          data: {
+
+            driveId: dto.driveId,
+
+            name,
+
+          },
+
+        });
+
+      this.logger.log(
+
+        `Guest volunteer registered: ${guestVolunteer.id} for drive ${dto.driveId}`,
+
+      );
+
+      return {
+
+        message: 'Guest volunteer registered successfully',
+
+        guestVolunteer,
+
+      };
+
+    } catch (error) {
+
+      if (
+
+        error instanceof BadRequestException ||
+
+        error instanceof NotFoundException
+
+      ) {
+
+        throw error;
+
+      }
+
+      this.logger.error(
+
+        'Guest volunteer registration failed',
+
+        error instanceof Error ? error.stack : String(error),
+
+      );
+
+      throw new InternalServerErrorException(
+
+        'Failed to register guest volunteer',
+
+      );
+
+    }
+
+  }
+
+  async getGuestVolunteers(driveId: number) {
+
+    this.validateDriveId(driveId);
+
+    try {
+
+      const drive = await this.databaseService.drive.findUnique({
+
+        where: { id: driveId },
+
+        select: { id: true },
+
+      });
+
+      if (!drive) {
+
+        throw new NotFoundException('Drive not found');
+
+      }
+
+      return await this.databaseService.guestVolunteer.findMany({
+
+        where: { driveId },
+
+        orderBy: { createdAt: 'asc' },
+
+        select: {
+
+          id: true,
+
+          driveId: true,
+
+          name: true,
+
+          hours: true,
+
+          waste: true,
+
+          createdAt: true,
+
+        },
+
+      });
+
+    } catch (error) {
+
+      if (
+
+        error instanceof BadRequestException ||
+
+        error instanceof NotFoundException
+
+      ) {
+
+        throw error;
+
+      }
+
+      this.logger.error(
+
+        'Fetch guest volunteers failed',
+
+        error instanceof Error ? error.stack : String(error),
+
+      );
+
+      throw new InternalServerErrorException(
+
+        'Failed to fetch guest volunteers',
+
+      );
+
+    }
+
+  }
+
+  async updateGuestVolunteer(
+
+    guestId: number,
+
+    dto: UpdateGuestVolunteerDto,
+
+  ) {
+
+    if (!Number.isInteger(guestId) || guestId < 1) {
+
+      throw new BadRequestException('Invalid guest volunteer ID');
+
+    }
+
+    if (dto.hours === undefined && dto.waste === undefined) {
+
+      throw new BadRequestException(
+
+        'Provide hours, waste, or both to update',
+
+      );
+
+    }
+
+    if (
+
+      dto.hours !== undefined &&
+
+      (!Number.isInteger(dto.hours) || dto.hours < 0)
+
+    ) {
+
+      throw new BadRequestException(
+
+        'Hours must be a non-negative integer',
+
+      );
+
+    }
+
+    if (
+
+      dto.waste !== undefined &&
+
+      (!Number.isInteger(dto.waste) || dto.waste < 0)
+
+    ) {
+
+      throw new BadRequestException(
+
+        'Waste must be a non-negative integer',
+
+      );
+
+    }
+
+    try {
+
+      const guest = await this.databaseService.guestVolunteer.findUnique({
+
+        where: { id: guestId },
+
+        select: {
+
+          id: true,
+
+          drive: {
+
+            select: {
+
+              initiative: true,
+
+            },
+
+          },
+
+        },
+
+      });
+
+      if (!guest) {
+
+        throw new NotFoundException('Guest volunteer not found');
+
+      }
+
+      if (
+
+        dto.waste !== undefined &&
+
+        guest.drive.initiative !== 'SAMBHAJINAGAR_PLOGGERS'
+
+      ) {
+
+        throw new BadRequestException(
+
+          'Waste tracking is only available for Sambhajinagar Ploggers drives',
+
+        );
+
+      }
+
+      const data: { hours?: number; waste?: number } = {};
+
+      if (dto.hours !== undefined) {
+
+        data.hours = dto.hours;
+
+      }
+
+      if (dto.waste !== undefined) {
+
+        data.waste = dto.waste;
+
+      }
+
+      const updatedGuest =
+
+        await this.databaseService.guestVolunteer.update({
+
+          where: { id: guestId },
+
+          data,
+
+        });
+
+      this.logger.log(`Guest volunteer updated: ${guestId}`);
+
+      return {
+
+        message: 'Guest volunteer updated successfully',
+
+        guestVolunteer: updatedGuest,
+
+      };
+
+    } catch (error) {
+
+      if (
+
+        error instanceof BadRequestException ||
+
+        error instanceof NotFoundException
+
+      ) {
+
+        throw error;
+
+      }
+
+      if (this.isRecordNotFoundError(error)) {
+
+        throw new NotFoundException('Guest volunteer not found');
+
+      }
+
+      this.logger.error(
+
+        'Update guest volunteer failed',
+
+        error instanceof Error ? error.stack : String(error),
+
+      );
+
+      throw new InternalServerErrorException(
+
+        'Failed to update guest volunteer',
+
+      );
 
     }
 
