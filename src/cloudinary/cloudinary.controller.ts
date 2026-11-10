@@ -6,7 +6,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import {
-  ApiBearerAuth,
+  ApiCookieAuth,
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
@@ -15,7 +15,7 @@ import { CloudinaryService } from './cloudinary.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth-guard';
 
 @ApiTags('Cloudinary')
-@ApiBearerAuth()
+@ApiCookieAuth('access-token')
 @Controller('cloudinary')
 @UseGuards(JwtAuthGuard)
 export class CloudinaryController {

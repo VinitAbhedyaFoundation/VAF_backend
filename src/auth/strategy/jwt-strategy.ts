@@ -1,3 +1,4 @@
+
 import {
   Injectable,
   UnauthorizedException,
@@ -8,6 +9,7 @@ import {
   ExtractJwt,
   Strategy,
 } from 'passport-jwt';
+import type { Request } from 'express';
 import {
   Role,
   UserStatus,
@@ -35,14 +37,16 @@ export class JwtStrategy extends PassportStrategy(
     );
 
     if (!secret || secret.trim().length < 32) {
-  throw new Error(
-    'JWT_SECRET_KEY is missing or too short',
-  );
-}
+      throw new Error(
+        'JWT_SECRET_KEY is missing or too short',
+      );
+    }
 
     super({
-      jwtFromRequest:
-        ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: ExtractJwt.fromExtractors([
+        (request: Request) =>
+          request?.cookies?.access_token ?? null,
+      ]),
       ignoreExpiration: false,
       secretOrKey: secret,
     });

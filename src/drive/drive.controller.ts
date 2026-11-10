@@ -11,7 +11,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import {
-  ApiBearerAuth,
+  ApiCookieAuth,
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
@@ -38,7 +38,7 @@ export class DriveController {
 
   // ================= ADMIN ROUTES =================
 
-  @ApiBearerAuth()
+  @ApiCookieAuth('access-token')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin, Role.SuperAdmin)
   @Post('newdrive')
@@ -50,7 +50,7 @@ export class DriveController {
     return this.driveService.createDrive(createDriveDto);
   }
 
-  @ApiBearerAuth()
+  @ApiCookieAuth('access-token')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin, Role.SuperAdmin)
   @Post('newlocation')
@@ -62,7 +62,7 @@ export class DriveController {
     return this.driveService.createDriveLocation(dto);
   }
 
-  @ApiBearerAuth()
+  @ApiCookieAuth('access-token')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin, Role.SuperAdmin)
   @Patch(':id')
@@ -127,7 +127,7 @@ export class DriveController {
 
   // ================= ADMIN GUEST VOLUNTEER ROUTES =================
 
-  @ApiBearerAuth()
+  @ApiCookieAuth('access-token')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin, Role.SuperAdmin)
   @Get('guest-volunteers/:driveId')
@@ -141,7 +141,7 @@ export class DriveController {
     return this.driveService.getGuestVolunteers(driveId);
   }
 
-  @ApiBearerAuth()
+  @ApiCookieAuth('access-token')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin, Role.SuperAdmin)
   @Patch('guest-volunteers/:guestId')
@@ -157,7 +157,7 @@ export class DriveController {
     return this.driveService.updateGuestVolunteer(guestId, dto);
   }
 
-  @ApiBearerAuth()
+  @ApiCookieAuth('access-token')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin, Role.SuperAdmin)
   @Post('guest-volunteers/walk-in')
@@ -200,7 +200,7 @@ export class DriveController {
 
   // ================= COMPLETE DRIVE =================
 
-  @ApiBearerAuth()
+  @ApiCookieAuth('access-token')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin, Role.SuperAdmin)
   @Patch(':id/complete')

@@ -6,7 +6,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import {
-  ApiBearerAuth,
+  ApiCookieAuth,
   ApiOperation,
   ApiResponse,
   ApiTags,
@@ -25,7 +25,7 @@ export class PaymentController {
 
   @Post('checkout')
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiCookieAuth('access-token')
   @ApiOperation({
     summary: 'Create Stripe checkout session',
   })

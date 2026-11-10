@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 
 import {
-  ApiBearerAuth,
+  ApiCookieAuth,
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
@@ -29,7 +29,7 @@ export class MessageController {
     private readonly messageService: MessageService,
   ) { }
 
-  @ApiBearerAuth()
+  @ApiCookieAuth('access-token')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin, Role.SuperAdmin)
   @Get('all')
@@ -41,7 +41,7 @@ export class MessageController {
   }
 
   
-  @ApiBearerAuth()
+  @ApiCookieAuth('access-token')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin, Role.SuperAdmin)
   @Post('send')
@@ -56,7 +56,7 @@ export class MessageController {
   }
 
 
-  @ApiBearerAuth()
+  @ApiCookieAuth('access-token')
   @UseGuards(JwtAuthGuard)
   @Get('notifications')
   @ApiOperation({
