@@ -6,7 +6,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import {
-  ApiBearerAuth,
+  ApiCookieAuth,
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
@@ -16,7 +16,7 @@ import type { Request } from 'express';
 import { DashboardService } from './dashboard.service';
 
 @ApiTags('Dashboard')
-@ApiBearerAuth()
+@ApiCookieAuth('access-token')
 @Controller('dashboard')
 export class DashboardController {
   constructor(

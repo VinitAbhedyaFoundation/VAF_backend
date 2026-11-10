@@ -15,7 +15,7 @@ import {
 } from '@nestjs/common';
 
 import {
-  ApiBearerAuth,
+  ApiCookieAuth,
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
@@ -34,7 +34,7 @@ const ALLOWED_TEMPLATE_TYPES = [
 ];
 
 @ApiTags('Certificate')
-@ApiBearerAuth()
+@ApiCookieAuth('access-token')
 @Controller('certificate')
 @UseGuards(JwtAuthGuard)
 export class CertificateController {

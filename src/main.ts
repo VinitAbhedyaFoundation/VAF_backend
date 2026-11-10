@@ -1,3 +1,4 @@
+
 import 'tsconfig-paths/register';
 
 import { NestFactory } from '@nestjs/core';
@@ -5,21 +6,25 @@ import { AppModule } from './app.module';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // Parse cookies from incoming requests
+  app.use(cookieParser());
 
   // Enable graceful shutdown
   app.enableShutdownHooks();
 
   // Allowed Frontend Origins
   const allowedOrigins = [
-  'http://localhost:8080',
-  'http://localhost:5173',
-  'https://vaf-frontend.vercel.app',
-  'https://vinitabhedyafoundation.com',
-  'https://www.vinitabhedyafoundation.com',
-];
+    'http://localhost:8080',
+    'http://localhost:5173',
+    'https://vaf-frontend.vercel.app',
+    'https://vinitabhedyafoundation.com',
+    'https://www.vinitabhedyafoundation.com',
+  ];
 
   // CORS
   app.enableCors({
@@ -50,6 +55,7 @@ async function bootstrap() {
     allowedHeaders: [
       'Content-Type',
       'Authorization',
+      'X-CSRF-Token',
     ],
   });
 
@@ -74,7 +80,15 @@ async function bootstrap() {
       .setTitle('Attendance API')
       .setDescription('Volunteer Management REST API')
       .setVersion('1.0')
-      .addBearerAuth()
+      .addCookieAuth(
+        'access_token',
+        {
+          type: 'apiKey',
+          in: 'cookie',
+          name: 'access_token',
+        },
+        'access-token',
+      )
       .build();
 
     const document = SwaggerModule.createDocument(

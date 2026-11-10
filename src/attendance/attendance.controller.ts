@@ -10,7 +10,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import {
-  ApiBearerAuth,
+  ApiCookieAuth,
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
@@ -26,7 +26,7 @@ import { BulkApproveAttendanceDto } from './dto/bulk-approve-attendance.dto';
 import { Role } from '@prisma/client';
 
 @ApiTags('Attendance')
-@ApiBearerAuth()
+@ApiCookieAuth('access-token')
 @Controller('attendance')
 @UseGuards(JwtAuthGuard)
 export class AttendanceController {

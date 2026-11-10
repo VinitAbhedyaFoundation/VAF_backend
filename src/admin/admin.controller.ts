@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 
 import {
-  ApiBearerAuth,
+  ApiCookieAuth,
   ApiOperation,
   ApiResponse,
   ApiTags,
@@ -26,7 +26,7 @@ export class AdminController {
     private readonly adminService: AdminService,
   ) { }
 
-  @ApiBearerAuth()
+  @ApiCookieAuth('access-token')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin, Role.SuperAdmin)
   @Get('dashboard-stats')

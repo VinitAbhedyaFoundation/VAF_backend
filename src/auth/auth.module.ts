@@ -4,6 +4,7 @@ import { DatabaseModule } from '../database/database.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './strategy/jwt-strategy';
+import { CsrfService } from './csrf/csrf.service';
 
 @Module({
   imports: [
@@ -15,9 +16,10 @@ import { JwtStrategy } from './strategy/jwt-strategy';
   providers: [
     AuthService,
     JwtStrategy,
+    CsrfService,
   ],
 
   // ✅ ADDED (IMPORTANT)
-  exports: [AuthService],
+  exports: [AuthService, CsrfService],
 })
 export class AuthModule { }

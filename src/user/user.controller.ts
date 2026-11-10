@@ -14,7 +14,7 @@ import {
 } from '@nestjs/common';
 
 import {
-  ApiBearerAuth,
+  ApiCookieAuth,
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
@@ -58,7 +58,7 @@ export class UserController {
   // USER DETAILS
   // =========================
 
-  @ApiBearerAuth()
+  @ApiCookieAuth('access-token')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.User, Role.Admin, Role.SuperAdmin)
   @Get('details')
@@ -73,7 +73,7 @@ export class UserController {
   // UPDATE CURRENT USER PROFILE
   // =========================
 
-  @ApiBearerAuth()
+  @ApiCookieAuth('access-token')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.User)
   @Patch('profile')
@@ -94,7 +94,7 @@ export class UserController {
   // ADMIN GET USER
   // =========================
 
-  @ApiBearerAuth()
+  @ApiCookieAuth('access-token')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin, Role.SuperAdmin)
   @Get('details/:ploggerId')
@@ -111,7 +111,7 @@ export class UserController {
   // GET ALL USERS
   // =========================
 
-  @ApiBearerAuth()
+  @ApiCookieAuth('access-token')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin, Role.SuperAdmin)
   @Get('all')
@@ -124,7 +124,7 @@ export class UserController {
   // LEADERBOARD
   // =========================
 
-  @ApiBearerAuth()
+  @ApiCookieAuth('access-token')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin, Role.SuperAdmin)
   @Get('leaderboard')
@@ -139,7 +139,7 @@ export class UserController {
   // SEARCH USERS
   // =========================
 
-  @ApiBearerAuth()
+  @ApiCookieAuth('access-token')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin, Role.SuperAdmin)
   @Get('search')
@@ -152,7 +152,7 @@ export class UserController {
   // APPROVE USER
   // =========================
 
-  @ApiBearerAuth()
+  @ApiCookieAuth('access-token')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.SuperAdmin, Role.Admin)
   @Patch('approve/:id')
@@ -167,7 +167,7 @@ export class UserController {
   // SUSPEND USER
   // =========================
 
-  @ApiBearerAuth()
+  @ApiCookieAuth('access-token')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.SuperAdmin, Role.Admin)
   @Patch('suspend/:id')
@@ -182,7 +182,7 @@ export class UserController {
   // CREATE VOLUNTEER
   // =========================
 
-  @ApiBearerAuth()
+  @ApiCookieAuth('access-token')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.SuperAdmin)
   @Post('create-volunteer')
@@ -206,7 +206,7 @@ export class UserController {
   // DELETE USER
   // =========================
 
-  @ApiBearerAuth()
+  @ApiCookieAuth('access-token')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.SuperAdmin)
   @Delete(':id')
@@ -223,7 +223,7 @@ export class UserController {
   // PROMOTE USER
   // =========================
 
-  @ApiBearerAuth()
+  @ApiCookieAuth('access-token')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.SuperAdmin)
   @Patch('promote/:id')
@@ -240,7 +240,7 @@ export class UserController {
   // MARK ATTENDANCE
   // =========================
 
-  @ApiBearerAuth()
+  @ApiCookieAuth('access-token')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.User)
   @Post('attendance')
@@ -261,7 +261,7 @@ export class UserController {
   // GET PENDING ATTENDANCE
   // =========================
 
-  @ApiBearerAuth()
+  @ApiCookieAuth('access-token')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin, Role.SuperAdmin)
   @Get('attendance/pending')
@@ -276,7 +276,7 @@ export class UserController {
   // APPROVE ATTENDANCE
   // =========================
 
-  @ApiBearerAuth()
+  @ApiCookieAuth('access-token')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin, Role.SuperAdmin)
   @Patch('attendance/approve/:id')
@@ -302,7 +302,7 @@ export class UserController {
   // REJECT ATTENDANCE
   // =========================
 
-  @ApiBearerAuth()
+  @ApiCookieAuth('access-token')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin, Role.SuperAdmin)
   @Patch('attendance/reject/:id')
@@ -319,7 +319,7 @@ export class UserController {
   // DRIVES ATTENDED
   // =========================
 
-  @ApiBearerAuth()
+  @ApiCookieAuth('access-token')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.User)
   @Get('drivesattended')

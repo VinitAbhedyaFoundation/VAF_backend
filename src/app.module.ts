@@ -18,7 +18,7 @@ import { PaymentModule } from './payment/payment.module';
 import { CertificateModule } from './certificate/certificate.module';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
 import { NewsletterModule } from './newsletter/newsletter.module';
-
+import { CsrfGuard } from './auth/csrf/csrf.guard';
 @Module({
   imports: [
     // ✅ Global Config
@@ -76,6 +76,10 @@ import { NewsletterModule } from './newsletter/newsletter.module';
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: CsrfGuard,
     },
   ],
 })
