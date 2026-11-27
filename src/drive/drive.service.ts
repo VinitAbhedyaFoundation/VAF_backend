@@ -138,9 +138,15 @@ export class DriveService {
 
   async createDrive(createDriveDto: CreateDriveDto) {
 
-    const { title, location, date, totalHours, initiative, description } =
-
-      createDriveDto;
+    const {
+      title,
+      location,
+      date,
+      totalHours,
+      initiative,
+      description,
+      driveResourcesUrl,
+    } = createDriveDto;
 
     try {
 
@@ -163,6 +169,7 @@ export class DriveService {
           initiative,
 
           description,
+          driveResourcesUrl,
 
           date: parsedDate,
 
@@ -181,6 +188,7 @@ export class DriveService {
             },
 
           },
+
 
         },
 
@@ -452,6 +460,8 @@ export class DriveService {
 
           description: drive.description,
 
+
+          driveResourcesUrl: drive.driveResourcesUrl,
         };
 
       });
@@ -618,6 +628,8 @@ export class DriveService {
 
         description: drive.description,
 
+
+        driveResourcesUrl: drive.driveResourcesUrl,
       };
 
     } catch (error) {
@@ -654,6 +666,7 @@ export class DriveService {
 
   // =========================
 
+
   async update(id: number, updateDriveData: UpdateDriveDto) {
     this.validateDriveId(id);
 
@@ -664,28 +677,17 @@ export class DriveService {
       totalHours,
       initiative,
       description,
+      driveResourcesUrl,
     } = updateDriveData;
 
     try {
       const existingDrive = await this.databaseService.drive.findUnique({
         where: { id },
-        select: {
-          id: true,
-          date: true,
-          completed: true,
-        },
+        select: { id: true },
       });
 
       if (!existingDrive) {
         throw new NotFoundException('Drive not found');
-      }
-
-      if (existingDrive.completed) {
-        throw new BadRequestException('Completed drives cannot be edited');
-      }
-
-      if (existingDrive.date.getTime() <= Date.now()) {
-        throw new BadRequestException('Only upcoming drives can be edited');
       }
 
       if (
@@ -694,23 +696,26 @@ export class DriveService {
         date === undefined &&
         totalHours === undefined &&
         initiative === undefined &&
-        description === undefined
+        description === undefined &&
+        driveResourcesUrl === undefined
       ) {
         throw new BadRequestException('Provide at least one field to update');
       }
 
       let parsedDate: Date | undefined;
+
       if (date !== undefined && date !== null) {
         parsedDate = new Date(date);
+
         if (Number.isNaN(parsedDate.getTime())) {
           throw new BadRequestException('Invalid date');
         }
-        if (parsedDate.getTime() <= Date.now()) {
-          throw new BadRequestException('The updated drive date must be in the future');
-        }
       }
 
-      if (totalHours !== undefined && (!Number.isInteger(totalHours) || totalHours <= 0)) {
+      if (
+        totalHours !== undefined &&
+        (!Number.isInteger(totalHours) || totalHours <= 0)
+      ) {
         throw new BadRequestException('Total hours must be a positive integer');
       }
 
@@ -720,6 +725,7 @@ export class DriveService {
           ...(title !== undefined && { title }),
           ...(initiative !== undefined && { initiative }),
           ...(description !== undefined && { description }),
+          ...(driveResourcesUrl !== undefined && { driveResourcesUrl }),
           ...(parsedDate !== undefined && { date: parsedDate }),
           ...(totalHours !== undefined && { totalHours }),
           ...(location !== undefined && {
@@ -762,9 +768,11 @@ export class DriveService {
         'Update drive failed',
         error instanceof Error ? error.stack : String(error),
       );
+
       throw new InternalServerErrorException('Failed to update drive');
     }
   }
+
 
   // =========================
 
@@ -946,6 +954,8 @@ export class DriveService {
 
           description: drive.description,
 
+
+          driveResourcesUrl: drive.driveResourcesUrl,
         };
 
       });
@@ -1076,6 +1086,8 @@ export class DriveService {
 
           description: drive.description,
 
+
+          driveResourcesUrl: drive.driveResourcesUrl,
           status,
 
           joinable: true,
@@ -1106,147 +1118,161 @@ export class DriveService {
 
   // =========================
 
-  async completeDrive(id: number, totalWasteKg?: number) {
 
+  async completeDrive(id: number, totalWasteKg?: number) {
     this.validateDriveId(id);
 
     if (
-
       totalWasteKg !== undefined &&
-
       (
-
         typeof totalWasteKg !== 'number' ||
-
         !Number.isFinite(totalWasteKg) ||
-
         !Number.isInteger(totalWasteKg) ||
-
         totalWasteKg < 0
-
       )
-
     ) {
-
       throw new BadRequestException(
-
         'Total waste collected must be a valid non-negative integer',
-
       );
-
     }
 
     try {
+      const drive = await this.databaseService.$transaction(
+        async (tx) => {
+          const existingDrive = await tx.drive.findUnique({
+            where: { id },
+            select: {
+              id: true,
+              initiative: true,
+              completed: true,
+            },
+          });
 
-      const existingDrive = await this.databaseService.drive.findUnique({
+          if (!existingDrive) {
+            throw new NotFoundException('Drive not found');
+          }
 
-        where: { id },
+          if (existingDrive.completed) {
+            throw new ConflictException(
+              'This drive has already been completed',
+            );
+          }
 
-        select: {
+          if (
+            totalWasteKg !== undefined &&
+            existingDrive.initiative !== 'SAMBHAJINAGAR_PLOGGERS'
+          ) {
+            throw new BadRequestException(
+              'Waste tracking is only available for Sambhajinagar Ploggers drives',
+            );
+          }
 
-          id: true,
+          // Conditional update prevents concurrent or duplicate completion.
+          const completionResult = await tx.drive.updateMany({
+            where: {
+              id,
+              completed: false,
+            },
+            data: {
+              completed: true,
+              ...(totalWasteKg !== undefined && { totalWasteKg }),
+            },
+          });
 
-          initiative: true,
+          if (completionResult.count !== 1) {
+            throw new ConflictException(
+              'This drive has already been completed',
+            );
+          }
 
-          totalWasteKg: true,
+          let allocatedVolunteers = 0;
 
+          if (totalWasteKg !== undefined) {
+            const approvedParticipations =
+              await tx.participation.findMany({
+                where: {
+                  driveId: id,
+                  status: 'Approved',
+                },
+                select: {
+                  id: true,
+                },
+                orderBy: {
+                  id: 'asc',
+                },
+              });
+
+            const volunteerCount = approvedParticipations.length;
+
+            allocatedVolunteers = volunteerCount;
+
+            if (volunteerCount > 0) {
+              const baseShare = Math.floor(
+                totalWasteKg / volunteerCount,
+              );
+
+              const remainder = totalWasteKg % volunteerCount;
+
+              await Promise.all(
+                approvedParticipations.map((participation, index) =>
+                  tx.participation.update({
+                    where: {
+                      id: participation.id,
+                    },
+                    data: {
+                      waste:
+                        baseShare + (index < remainder ? 1 : 0),
+                    },
+                  }),
+                ),
+              );
+            }
+          }
+
+          const completedDrive = await tx.drive.findUnique({
+            where: { id },
+          });
+
+          if (!completedDrive) {
+            throw new NotFoundException('Drive not found');
+          }
+
+          return {
+            drive: completedDrive,
+            allocatedVolunteers,
+          };
         },
-
-      });
-
-      if (!existingDrive) {
-
-        throw new NotFoundException('Drive not found');
-
-      }
-
-      if (
-
-        totalWasteKg !== undefined &&
-
-        existingDrive.initiative !== 'SAMBHAJINAGAR_PLOGGERS'
-
-      ) {
-
-        throw new BadRequestException(
-
-          'Waste tracking is only available for Sambhajinagar Ploggers drives',
-
-        );
-
-      }
-
-      const data: {
-
-        completed: boolean;
-
-        totalWasteKg?: number;
-
-      } = {
-
-        completed: true,
-
-      };
-
-      // Update waste only when the caller explicitly provides a value.
-
-      if (totalWasteKg !== undefined) {
-
-        data.totalWasteKg = totalWasteKg;
-
-      }
-
-      const drive = await this.databaseService.drive.update({
-
-        where: { id },
-
-        data,
-
-      });
-
-      this.logger.log(
-
-        `Drive completed: ${drive.id} | Initiative: ${existingDrive.initiative ?? 'Unclassified'
-
-        } | Total waste: ${drive.totalWasteKg} kg`,
-
       );
 
-      return drive;
+      this.logger.log(
+        `Drive completed: ${drive.drive.id} | Total waste: ${drive.drive.totalWasteKg} kg | Allocated volunteers: ${drive.allocatedVolunteers}`,
+      );
 
+      return drive.drive;
     } catch (error) {
-
       if (
-
         error instanceof NotFoundException ||
-
-        error instanceof BadRequestException
-
+        error instanceof BadRequestException ||
+        error instanceof ConflictException
       ) {
-
         throw error;
-
       }
 
       if (this.isRecordNotFoundError(error)) {
-
         throw new NotFoundException('Drive not found');
-
       }
 
       this.logger.error(
-
         'Complete drive failed',
-
         error instanceof Error ? error.stack : String(error),
-
       );
 
-      throw new InternalServerErrorException('Failed to complete drive');
-
+      throw new InternalServerErrorException(
+        'Failed to complete drive',
+      );
     }
-
   }
+
 
   async registerGuestVolunteer(dto: CreateGuestVolunteerDto) {
 

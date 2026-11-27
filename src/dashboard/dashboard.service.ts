@@ -114,19 +114,19 @@ export class DashboardService {
       const activity =
         Object.values(activityMap);
 
-      const recentDrives =
-  completedParticipations.map((p: any) => ({
-    participationId: p.id,
-    driveId: p.driveId,
-    attendanceMarked: p.attendanceMarked,
-    title: p.drive?.title ?? this.DEFAULT_DRIVE,
-    location:
-      p.drive?.driveLocation?.location ??
-      this.UNKNOWN_LOCATION,
-    date: p.drive?.date ?? null,
-    hours: p.hours ?? 0,
-    status: p.status,
-  }));
+      const recentDrives = completedParticipations.map((p: any) => ({
+        participationId: p.id,
+        driveId: p.driveId,
+        attendanceMarked: p.attendanceMarked,
+        title: p.drive?.title ?? this.DEFAULT_DRIVE,
+        location:
+          p.drive?.driveLocation?.location ??
+          this.UNKNOWN_LOCATION,
+        date: p.drive?.date ?? null,
+        hours: p.hours ?? 0,
+        status: p.status,
+        driveResourcesUrl: p.drive?.driveResourcesUrl ?? null,
+      }));
 
       const certificateRecords =
         await this.prisma.certificate.findMany({

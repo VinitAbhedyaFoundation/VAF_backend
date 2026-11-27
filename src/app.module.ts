@@ -1,8 +1,10 @@
+
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
 
 // Feature modules
 import { UserModule } from './user/user.module';
@@ -14,27 +16,32 @@ import { AdminModule } from './admin/admin.module';
 import { AttendanceModule } from './attendance/attendance.module';
 import { MessageModule } from './message/message.module';
 import { MailModule } from './mail/mail.module';
+import { BirthdayModule } from './birthday/birthday.module';
 import { PaymentModule } from './payment/payment.module';
 import { CertificateModule } from './certificate/certificate.module';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
 import { NewsletterModule } from './newsletter/newsletter.module';
 import { CsrfGuard } from './auth/csrf/csrf.guard';
+
 @Module({
   imports: [
-    // ✅ Global Config
+    // Global Config
     ConfigModule.forRoot({
       isGlobal: true,
     }),
 
-    // ✅ Rate Limiting
+    // Scheduled tasks
+    ScheduleModule.forRoot(),
+
+    // Rate Limiting
     ThrottlerModule.forRoot([
       {
-        ttl: 60000, // 1 minute
-        limit: 100, // 100 requests per minute
+        ttl: 60000,
+        limit: 100,
       },
     ]),
 
-    // ✅ JWT Config
+    // JWT Config
     JwtModule.registerAsync({
       global: true,
       inject: [ConfigService],
@@ -54,10 +61,10 @@ import { CsrfGuard } from './auth/csrf/csrf.guard';
       },
     }),
 
-    // ✅ Core modules
+    // Core modules
     DatabaseModule,
 
-    // ✅ Feature modules
+    // Feature modules
     AuthModule,
     UserModule,
     DriveModule,
@@ -66,6 +73,7 @@ import { CsrfGuard } from './auth/csrf/csrf.guard';
     AttendanceModule,
     MessageModule,
     MailModule,
+    BirthdayModule,
     PaymentModule,
     CertificateModule,
     CloudinaryModule,
@@ -83,4 +91,4 @@ import { CsrfGuard } from './auth/csrf/csrf.guard';
     },
   ],
 })
-export class AppModule { }
+export class AppModule {}

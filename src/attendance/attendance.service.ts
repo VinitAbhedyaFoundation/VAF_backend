@@ -78,6 +78,12 @@ export class AttendanceService {
       throw new BadRequestException('Drive not found');
     }
 
+    if (drive.completed) {
+      throw new BadRequestException(
+        'This drive has already been completed and cannot accept new participants.',
+      );
+    }
+
     const now = new Date();
     const driveStart = new Date(drive.date);
     const driveEnd = new Date(

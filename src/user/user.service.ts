@@ -776,6 +776,149 @@ export class UserService {
     }
   }
 
+
+  async getHomepageVolunteers() {
+    try {
+      const approvedUsers = await this.databaseService.user.findMany({
+        where: {
+          role: Role.User,
+          status: UserStatus.Approved,
+        },
+        select: {
+          id: true,
+          name: true,
+        },
+      });
+
+      if (approvedUsers.length === 0) {
+        return {
+          message: 'No approved volunteers found',
+          volunteers: [],
+        };
+      }
+
+      const totals = await this.databaseService.participation.groupBy({
+        by: ['userId'],
+        where: {
+          userId: {
+            in: approvedUsers.map((user) => user.id),
+          },
+          status: AttendanceStatus.Approved,
+        },
+        _count: {
+          _all: true,
+        },
+        _sum: {
+          hours: true,
+        },
+      });
+
+      const totalsByUser = new Map(
+        totals.map((item) => [
+          item.userId,
+          {
+            totalHours: item._sum.hours ?? 0,
+            totalDrives: item._count._all,
+          },
+        ]),
+      );
+
+      const rankedVolunteers = approvedUsers
+        .map((user) => ({
+          id: user.id,
+          name: user.name,
+          ...(totalsByUser.get(user.id) ?? {
+            totalHours: 0,
+            totalDrives: 0,
+          }),
+        }))
+        .filter((user) => user.totalDrives > 0)
+        .sort(
+          (a, b) =>
+            b.totalHours - a.totalHours ||
+            b.totalDrives - a.totalDrives ||
+            a.id - b.id,
+        )
+        .slice(0, 15);
+
+      if (rankedVolunteers.length === 0) {
+        return {
+          message: 'No volunteer contributions found',
+          volunteers: [],
+        };
+      }
+
+      const userIds = rankedVolunteers.map((user) => user.id);
+
+      const participations =
+        await this.databaseService.participation.findMany({
+          where: {
+            userId: { in: userIds },
+            status: AttendanceStatus.Approved,
+          },
+          select: {
+            userId: true,
+            hours: true,
+            drive: {
+              select: {
+                id: true,
+                title: true,
+                date: true,
+                initiative: true,
+                driveLocation: {
+                  select: {
+                    location: true,
+                  },
+                },
+              },
+            },
+          },
+          orderBy: {
+            createdAt: 'desc',
+          },
+        });
+
+      const drivesByUser = new Map<number, object[]>();
+
+      for (const participation of participations) {
+        const drives = drivesByUser.get(participation.userId) ?? [];
+
+        drives.push({
+          id: participation.drive.id,
+          title: participation.drive.title,
+          date: participation.drive.date,
+          initiative: participation.drive.initiative,
+          location:
+            participation.drive.driveLocation?.location ?? null,
+          hours: participation.hours,
+        });
+
+        drivesByUser.set(participation.userId, drives);
+      }
+
+      return {
+        message: 'Homepage volunteers fetched successfully',
+        volunteers: rankedVolunteers.map((user, index) => ({
+          rank: index + 1,
+          name: user.name,
+          totalHours: user.totalHours,
+          totalDrives: user.totalDrives,
+          drives: drivesByUser.get(user.id) ?? [],
+        })),
+      };
+    } catch (error: unknown) {
+      this.logger.error(
+        'getHomepageVolunteers error:',
+        this.getErrorDetails(error),
+      );
+
+      throw new InternalServerErrorException(
+        'Failed to fetch homepage volunteers',
+      );
+    }
+  }
+
+
   async searchUsers(query: string, page = 1, limit = 50) {
     try {
       this.validatePagination(page, limit);
@@ -865,12 +1008,21 @@ export class UserService {
           id: true,
           date: true,
           totalHours: true,
+          completed: true,
         },
       });
 
       if (!drive) {
         throw new NotFoundException(
           'Drive not found or token is invalid.',
+        );
+      }
+
+      // Block token-based attendance for completed drives, so editing a
+      // completed drive's date or hours can never reopen its attendance window.
+      if (drive.completed) {
+        throw new BadRequestException(
+          'Attendance cannot be marked because this drive has already been completed.',
         );
       }
 
