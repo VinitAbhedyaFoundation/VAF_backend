@@ -3,6 +3,7 @@ import { Type } from 'class-transformer';
 import {
   IsDate,
   IsEnum,
+  IsUrl,
   IsInt,
   IsNotEmpty,
   IsOptional,
@@ -39,6 +40,16 @@ export class CreateDriveDto {
   @IsString()
   @MaxLength(2000)
   description?: string;
+
+  @ApiPropertyOptional({
+    example: 'https://drive.google.com/drive/folders/123456789',
+    description: 'Optional Google Drive resources link',
+  })
+  @IsOptional()
+  @IsString()
+  @IsUrl({ require_protocol: true })
+  @MaxLength(2048)
+  driveResourcesUrl?: string;
 
   @ApiProperty({
     example: 'Chhatrapati Sambhajinagar',

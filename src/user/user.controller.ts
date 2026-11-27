@@ -120,6 +120,19 @@ export class UserController {
     return this.userService.getAllUsers();
   }
 
+
+  // =========================
+  // HOMEPAGE VOLUNTEERS
+  // =========================
+
+  @Get('homepage-volunteers')
+  @ApiOperation({
+    summary: 'Get top 15 volunteers for the public homepage',
+  })
+  getHomepageVolunteers() {
+    return this.userService.getHomepageVolunteers();
+  }
+
   // =========================
   // LEADERBOARD
   // =========================

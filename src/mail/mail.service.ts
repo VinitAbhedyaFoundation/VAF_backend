@@ -1,3 +1,4 @@
+
 import {
   BadRequestException,
   Injectable,
@@ -126,6 +127,24 @@ export class MailService implements OnModuleInit {
     return normalized;
   }
 
+  private normalizeCc(cc?: string | string[]): string[] {
+    if (cc === undefined) {
+      return [];
+    }
+
+    const ccAddresses = Array.isArray(cc) ? cc : [cc];
+
+    if (ccAddresses.length === 0) {
+      return [];
+    }
+
+    const normalizedAddresses = ccAddresses.map((email) =>
+      this.normalizeRecipient(email),
+    );
+
+    return [...new Set(normalizedAddresses)];
+  }
+
   private createPlainText(subject: string, content: string): string {
     return `${subject}\n\n${content}\n\nVAF Portal`;
   }
@@ -190,6 +209,7 @@ export class MailService implements OnModuleInit {
     to: string,
     subject: string,
     content: string,
+    cc?: string | string[],
   ): Promise<void> {
     this.ensureEmailConfigured();
 
@@ -197,10 +217,15 @@ export class MailService implements OnModuleInit {
     const normalizedSubject = this.normalizeSubject(subject);
     const normalizedContent = this.validateContent(content);
 
+    const ccRecipients = this.normalizeCc(cc).filter(
+      (email) => email.toLowerCase() !== recipient.toLowerCase(),
+    );
+
     try {
       await this.transporter.sendMail({
         from: `"VAF Portal" <${process.env.EMAIL_USER}>`,
         to: recipient,
+        ...(ccRecipients.length > 0 && { cc: ccRecipients }),
         subject: normalizedSubject,
         text: this.createPlainText(normalizedSubject, normalizedContent),
         html: this.createHtmlTemplate(normalizedSubject, normalizedContent),
